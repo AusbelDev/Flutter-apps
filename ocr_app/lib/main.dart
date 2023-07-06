@@ -1,9 +1,13 @@
+import 'dart:ffi';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image_picker/image_picker.dart';
 
-void main() => runApp(const OCRApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const OCRApp());
+}
 
 class OCRApp extends StatefulWidget {
   const OCRApp({super.key});
@@ -13,7 +17,8 @@ class OCRApp extends StatefulWidget {
 }
 
 class _OCRAppState extends State<OCRApp> {
-  late File _pickedImage;
+  // late File _pickedImage = File('downloads/images.png');
+  var _pickedImage;
   String _recognizedText = '';
 
   Future<void> _pickImage() async {
@@ -40,14 +45,22 @@ class _OCRAppState extends State<OCRApp> {
         await textDetector.processImage(inputImage);
 
     String recognizedText = '';
+    // Define a variable to store the total
+    double total = 0.0;
     for (TextBlock block in recognisedText.blocks) {
       for (TextLine line in block.lines) {
-        recognizedText += '${line.text}\n';
+        //   recognizedText += '${line.text}\n';
+        // Get only the float numbers
+        var matches = RegExp(r"(\d+\.\d+)").allMatches(line.text);
+        for (var match in matches) {
+          // total = double.parse(match.group(0));
+          total += double.parse(match.group(0).toString());
+        }
       }
     }
 
     setState(() {
-      _recognizedText = recognizedText;
+      _recognizedText = total.toString();
     });
 
     textDetector.close();
