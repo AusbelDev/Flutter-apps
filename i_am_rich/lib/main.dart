@@ -12,7 +12,7 @@ void main() {
         ),
         body: const Center(
           child: Image(
-            image: NetworkImage('https://picsum.photos/250?image=10'),
+            image: NetworkImage('https://picsum.photos/250?image=9'),
           ),
         ),
       ),
