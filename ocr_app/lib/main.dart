@@ -37,7 +37,7 @@ class _OCRAppState extends State<OCRApp> {
             pickedImages.map((pickedImage) => File(pickedImage.path)).toList();
         _recognizedTexts = List<String>.filled(_pickedImages.length, '');
       } else {
-        print('No images selected.');
+        debugPrint('No images selected.');
       }
     });
 
@@ -82,7 +82,7 @@ class _OCRAppState extends State<OCRApp> {
       // debugPrint(recognizedText);
 
       setState(() {
-        _recognizedTexts[i] = 'Total de página: ${total.toStringAsFixed(2)}';
+        _recognizedTexts[i] = 'Total de página: \$${total.toStringAsFixed(2)}';
       });
     }
 
@@ -92,72 +92,124 @@ class _OCRAppState extends State<OCRApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'OCR App',
-      home: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          title: const Text('SP Scanner'),
+        title: 'OCR App',
+        theme: ThemeData(
+          primarySwatch: Colors.red,
         ),
-        body: ListView.builder(
-          itemCount: _pickedImages.length,
-          itemBuilder: (BuildContext context, int index) {
-            return Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Image.file(
-                    _pickedImages[index],
-                    height: 200,
-                    width: 80,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _recognizedTexts[index],
-                      style: const TextStyle(fontSize: 20),
+        home: DefaultTabController(
+          initialIndex: 1,
+          length: 2,
+          child: Scaffold(
+            // backgroundColor: const Color.fromRGBO(241, 201, 59, 1),
+            appBar: AppBar(
+                centerTitle: true,
+                title: const Text('SP Scanner'),
+                backgroundColor: const Color.fromRGBO(26, 93, 26, 1),
+                bottom: const TabBar(
+                  tabs: <Widget>[
+                    Tab(
+                      icon: Icon(Icons.camera_alt),
+                      text: 'Camara',
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _pickImages,
-          child: const Icon(Icons.photo_library),
-        ),
-        bottomNavigationBar: _pickedImages.isNotEmpty
-            ? BottomAppBar(
-                color: Colors.blue,
-                height: 70,
-                child: Column(
-                  children: [
-                    LinearProgressIndicator(
-                      value: _processedImageCount / _pickedImages.length,
-                      backgroundColor: Colors.white,
-                      // minHeight: 20,
-                      valueColor:
-                          const AlwaysStoppedAnimation<Color>(Colors.red),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Total de documento: ${maxTotal.toStringAsFixed(2)}',
-                        style:
-                            const TextStyle(fontSize: 20, color: Colors.white),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Progress: ${(_processedImageCount / _pickedImages.length * 100).toStringAsFixed(1)}%',
-                        style:
-                            const TextStyle(fontSize: 20, color: Colors.white),
-                      ),
+                    Tab(
+                      icon: Icon(Icons.photo_library),
+                      text: 'Galeria',
                     ),
                   ],
+                )),
+            body: TabBarView(
+              children: [
+                const Center(
+                  child: Text('Camera'),
                 ),
-              )
-            : null,
-      ),
-    );
+                Column(
+                  children: [
+                    _pickedImages.isEmpty
+                        ? const Expanded(
+                            child: Center(child: Text('No images selected.')))
+                        : Expanded(
+                            child: ListView.builder(
+                              itemCount: _pickedImages.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Row(
+                                    children: [
+                                      Image.file(
+                                        _pickedImages[index],
+                                        height: 200,
+                                        width: 80,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Center(
+                                          child: Text(
+                                            _recognizedTexts[index],
+                                            style: const TextStyle(
+                                                fontSize: 20,
+                                                color: Colors.blueGrey),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Align(
+                        alignment: const Alignment(0.9, 0.5),
+                        child: FloatingActionButton(
+                          backgroundColor: const Color.fromRGBO(26, 93, 26, 1),
+                          onPressed: _pickImages,
+                          child: const Icon(Icons.photo_library),
+                        ),
+                      ),
+                    ),
+                    if (_pickedImages.isNotEmpty)
+                      BottomAppBar(
+                        color: const Color.fromRGBO(26, 93, 26, 1),
+                        height: 80,
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: LinearProgressIndicator(
+                                  value: _processedImageCount /
+                                      _pickedImages.length,
+                                  backgroundColor: Colors.white,
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                          Colors.red),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Total de documento: \$${maxTotal.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                    fontSize: 20, color: Colors.white),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Progreso: ${(_processedImageCount / _pickedImages.length * 100).toStringAsFixed(1)}%',
+                                style: const TextStyle(
+                                    fontSize: 20, color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ));
   }
 }
