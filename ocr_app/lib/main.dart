@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image_picker/image_picker.dart';
+import 'camera.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -119,9 +120,7 @@ class _OCRAppState extends State<OCRApp> {
                 )),
             body: TabBarView(
               children: [
-                const Center(
-                  child: Text('Camera'),
-                ),
+                const CameraWidget(),
                 Column(
                   children: [
                     _pickedImages.isEmpty
