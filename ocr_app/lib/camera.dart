@@ -60,23 +60,36 @@ class _ScalableOCRWidgetState extends State<ScalableOCRWidget> {
   }
 }
 
-class Result extends StatelessWidget {
-  const Result({
+class Result extends StatefulWidget {
+  Result({
     Key? key,
     required this.text,
   }) : super(key: key);
+  double total = 0;
 
   final String text;
+
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Text("Readed text: ${_getFloats(text)}");
+  // }
+
+  @override
+  State<Result> get createState => _ResultState();
+}
+
+class _ResultState extends State<Result> {
+  double maxTotal = 0;
+
   double _getFloats(String s) {
-    String filteredText = '';
     double total = 0;
-    double maxTotal = 0;
+    String filteredText = '';
     filteredText = s;
     if (filteredText.contains(',') && filteredText.contains('.')) {
       // If it does, remove the comma
       filteredText = filteredText.replaceAll(',', '');
     }
-    // Check if the line contains a comma
+// Check if the line contains a comma
     else if (filteredText.contains(',')) {
       // If it does, replace it with a dot
       filteredText = filteredText.replaceAll(',', '.');
@@ -93,6 +106,6 @@ class Result extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text("Readed text: ${_getFloats(text)}");
+    return Text("Readed text: ${_getFloats(widget.text)}");
   }
 }
