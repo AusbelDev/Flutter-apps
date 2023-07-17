@@ -120,7 +120,7 @@ class _OCRAppState extends State<OCRApp> {
                 )),
             body: TabBarView(
               children: [
-                const CameraWidget(),
+                const ScalableOCRWidget(),
                 Column(
                   children: [
                     _pickedImages.isEmpty
