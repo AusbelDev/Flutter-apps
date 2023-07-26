@@ -16,6 +16,8 @@ class ScalableOCRWidget extends StatefulWidget {
 
 class _ScalableOCRWidgetState extends State<ScalableOCRWidget> {
   String text = "";
+  bool add = false;
+
   final StreamController<String> controller = StreamController<String>();
 
   void setText(value) {
@@ -28,6 +30,12 @@ class _ScalableOCRWidgetState extends State<ScalableOCRWidget> {
     super.dispose();
   }
 
+  void _addTotal() {
+    setState(() {
+      add = !add;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -37,7 +45,7 @@ class _ScalableOCRWidgetState extends State<ScalableOCRWidget> {
             paintboxCustom: Paint()
               ..style = PaintingStyle.stroke
               ..strokeWidth = 4.0
-              ..color = const Color.fromARGB(153, 102, 160, 241),
+              ..color = const Color.fromARGB(255, 255, 255, 255),
             boxLeftOff: 5,
             boxBottomOff: 2.5,
             boxRightOff: 5,
@@ -49,24 +57,32 @@ class _ScalableOCRWidgetState extends State<ScalableOCRWidget> {
             getScannedText: (value) {
               setText(value);
             }),
+        ElevatedButton(
+          onPressed: _addTotal,
+          child: const Text("Sumar al total"),
+        ),
         StreamBuilder<String>(
-          stream: controller.stream,
-          builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
-            return Result(text: snapshot.data != null ? snapshot.data! : "");
-          },
-        )
+            stream: controller.stream,
+            builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+              return Result(
+                  text: snapshot.data != null ? snapshot.data! : "",
+                  addTotal: add);
+            }),
       ],
     );
   }
 }
 
+// ignore: must_be_immutable
 class Result extends StatefulWidget {
   Result({
     Key? key,
     required this.text,
+    this.addTotal = false,
   }) : super(key: key);
   double total = 0;
 
+  bool addTotal;
   final String text;
 
   // @override
@@ -99,13 +115,16 @@ class _ResultState extends State<Result> {
         null) {
       total += double.parse(filteredText.replaceAll(RegExp('[^0-9.]'), ''));
     }
-
-    maxTotal += total;
+    if (widget.addTotal) {
+      widget.addTotal = false;
+      maxTotal += total;
+    }
+    // maxTotal += total;
     return maxTotal;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Text("Readed text: ${_getFloats(widget.text)}");
+    return Text("Total: ${_getFloats(widget.text)}");
   }
 }
