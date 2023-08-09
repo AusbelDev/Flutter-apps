@@ -11,7 +11,7 @@ class ScalableOCRWidget extends StatefulWidget {
   // final String title;
 
   @override
-  State<ScalableOCRWidget> get createState => _ScalableOCRWidgetState();
+  State<ScalableOCRWidget> createState() => _ScalableOCRWidgetState();
 }
 
 class _ScalableOCRWidgetState extends State<ScalableOCRWidget> {
@@ -83,10 +83,10 @@ class _ScalableOCRWidgetState extends State<ScalableOCRWidget> {
               ..strokeWidth = 5.0
               ..color = const Color.fromARGB(255, 255, 255, 255),
             boxLeftOff: 5,
-            boxBottomOff: 2.5,
+            boxBottomOff: 8,
             boxRightOff: 5,
-            boxTopOff: 2.5,
-            boxHeight: MediaQuery.of(context).size.height / 3,
+            boxTopOff: 30,
+            boxHeight: MediaQuery.of(context).size.height / 2,
             getRawData: (value) {
               inspect(value);
             },
@@ -130,7 +130,7 @@ class Result extends StatefulWidget {
   // }
 
   @override
-  State<Result> get createState => _ResultState();
+  State<Result> createState() => _ResultState();
 }
 
 class _ResultState extends State<Result> {

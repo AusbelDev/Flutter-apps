@@ -15,7 +15,7 @@ class OCRApp extends StatefulWidget {
   const OCRApp({super.key});
 
   @override
-  State<OCRApp> get createState => _OCRAppState();
+  State<OCRApp> createState() => _OCRAppState();
 }
 
 class _OCRAppState extends State<OCRApp> {
