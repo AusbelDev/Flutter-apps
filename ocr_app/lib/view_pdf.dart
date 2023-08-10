@@ -81,7 +81,9 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
   void _convertBoxCoordinatesToPdfCoordinates() {
     pdfOffsetX = _pdfViewerController.scrollOffset.dx;
     pdfOffsetY = _pdfViewerController.scrollOffset.dy;
-
+    viewOffset = containerWidth * (_pdfViewerController.pageNumber - 1) -
+        4 * (_pdfViewerController.pageNumber - 1);
+    debugPrint('viewOffset: $viewOffset');
     debugPrint('pdfPageWidth: $pdfPageWidth, pdfPageHeight: $pdfPageHeight');
     debugPrint('pdfOffsetX: $pdfOffsetX, pdfOffsetY: $pdfOffsetY');
     debugPrint(
@@ -106,14 +108,14 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     if (zoomLevel != 1.0) {
       pdfStartX = pdfOffsetX * (pdfPageWidth / containerWidth) +
           (_startX * (pdfPageWidth / containerWidth) / zoomLevel) -
-          viewOffset;
+          viewOffset * (pdfPageWidth / containerWidth);
 
       pdfStartY = pdfOffsetY * (pdfPageHeight / scaledContainerHeight) +
           (_startY) * (pdfPageHeight / scaledContainerHeight) / zoomLevel;
 
       pdfEndX = pdfOffsetX * (pdfPageWidth / containerWidth) +
           (_endX * (pdfPageWidth / containerWidth) / zoomLevel) -
-          viewOffset;
+          viewOffset * (pdfPageWidth / containerWidth);
 
       pdfEndY = pdfOffsetY * (pdfPageHeight / scaledContainerHeight) +
           (_endY) * (pdfPageHeight / scaledContainerHeight) / zoomLevel;
@@ -247,11 +249,7 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                           controller: _pdfViewerController,
                           pageLayoutMode: PdfPageLayoutMode.continuous,
                           scrollDirection: PdfScrollDirection.horizontal,
-                          onPageChanged: (details) {
-                            viewOffset = containerWidth *
-                                    (_pdfViewerController.pageNumber - 1) -
-                                4 * (_pdfViewerController.pageNumber - 1);
-                          },
+                          onPageChanged: (details) {},
                         );
                       },
                     ),

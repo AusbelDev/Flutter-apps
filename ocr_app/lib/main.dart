@@ -428,10 +428,6 @@ class _OCRAppState extends State<OCRApp> {
                       ),
                   ],
                 ),
-                // const TextExtractionPdf(),
-                // const PDFView(filePath: 'assets/2.pdf')
-                // const MyPdfViewer()
-                // Scaffold(body: SfPdfViewer.asset('assets/2.pdf'))
                 const PdfBoxSelector()
               ],
             ),
