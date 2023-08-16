@@ -328,6 +328,17 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                         for (int i = 0; i < extractedNumbers.length; i++)
                           Row(children: [
                             SizedBox(
+                              child: TextButton(
+                                child:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    extractedNumbers.removeAt(i);
+                                  });
+                                },
+                              ),
+                            ),
+                            SizedBox(
                               height: 40,
                               child: TextButton(
                                   style: ButtonStyle(

@@ -303,7 +303,17 @@ class _ImagePageState extends State<ImagePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.25,
+                  width: MediaQuery.of(context).size.width * 0.1,
+                  child: TextButton(
+                      child: const Icon(Icons.delete),
+                      onPressed: () {
+                        setState(() {
+                          pageTextDetail.removeAt(index);
+                        });
+                      }),
+                ),
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.10,
                   child: TextButton(
                       style: ButtonStyle(
                           padding: MaterialStateProperty.all(

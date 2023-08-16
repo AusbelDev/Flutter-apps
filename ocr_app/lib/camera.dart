@@ -359,6 +359,16 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
                         for (int i = 0; i < extractedNumbers.length; i++)
                           Row(children: [
                             SizedBox(
+                              child: TextButton(
+                                child: const Icon(Icons.remove),
+                                onPressed: () {
+                                  setState(() {
+                                    extractedNumbers.removeAt(i);
+                                  });
+                                },
+                              ),
+                            ),
+                            SizedBox(
                               height: 40,
                               child: TextButton(
                                   style: ButtonStyle(
