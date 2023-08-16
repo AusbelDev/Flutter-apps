@@ -18,30 +18,79 @@ class TakePictureScreen extends StatefulWidget {
 }
 
 class TakePictureScreenState extends State<TakePictureScreen> {
-  late CameraController _controller;
-  late Future<void> _initializeControllerFuture;
+  CameraController? _controller;
+  // late Future<void> _initializeControllerFuture;
   double result = 0;
   double total = 0;
+  double zoom = 1;
+  double maxZoom = 1;
+  double minZoom = 1;
+  bool isCameraReady = false;
+
+  void onNewCameraSelected(CameraDescription cameraDescription) async {
+    final previousCameraController = _controller;
+    // Instantiating the camera controller
+    final CameraController cameraController = CameraController(
+      cameraDescription,
+      ResolutionPreset.high,
+      enableAudio: false,
+      // imageFormatGroup: ImageFormatGroup.jpeg,
+    );
+
+    // Dispose the previous controller
+    await previousCameraController?.dispose();
+
+    // Replace with the new controller
+    if (mounted) {
+      setState(() {
+        _controller = cameraController;
+      });
+    }
+
+    // Update UI if controller updated
+    cameraController.addListener(() {
+      if (mounted) setState(() {});
+    });
+
+    // Initialize controller
+    try {
+      await cameraController.initialize();
+      _controller?.getMaxZoomLevel().then((value) => maxZoom = value);
+      _controller?.getMinZoomLevel().then((value) => minZoom = value);
+    } on CameraException catch (e) {
+      debugPrint('Error initializing camera: $e');
+    }
+    // Update the Boolean
+    if (mounted) {
+      setState(() {
+        isCameraReady = _controller!.value.isInitialized;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+
+    onNewCameraSelected(widget.camera);
     // To display the current output from the Camera,
     // create a CameraController.
-    _controller = CameraController(
-      // Get a specific camera from the list of available cameras.
-      widget.camera,
-      // Define the resolution to use.
-      ResolutionPreset.medium,
-    );
+    // _controller = CameraController(
+    //   // Get a specific camera from the list of available cameras.
+    //   widget.camera,
+    //   // Define the resolution to use.
+    //   ResolutionPreset.low,
+    //   enableAudio: false,
+    // );
 
     // Next, initialize the controller. This returns a Future.
-    _initializeControllerFuture = _controller.initialize();
+    // _initializeControllerFuture = _controller.initialize();
   }
 
   @override
   void dispose() {
     // Dispose of the controller when the widget is disposed.
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -52,95 +101,104 @@ class TakePictureScreenState extends State<TakePictureScreen> {
         // You must wait until the controller is initialized before displaying the
         // camera preview. Use a FutureBuilder to display a loading spinner until the
         // controller has finished initializing.
-        body: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-          Stack(children: [
-            FutureBuilder<void>(
-              future: _initializeControllerFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.done) {
-                  // If the Future is complete, display the preview.
-                  return ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: CameraPreview(_controller));
-                } else {
-                  // Otherwise, display a loading indicator.
-                  return const Center(child: CircularProgressIndicator());
-                }
-              },
-            ),
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.01,
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton(
-                      onPressed: null,
-                      child: Text('Total: ${total.toStringAsFixed(2)}',
-                          style:
-                              const TextStyle(fontSize: 20, color: Colors.red)),
-                    ),
-                  ],
+        body: Stack(alignment: Alignment.center, children: <Widget>[
+      Stack(children: [
+        isCameraReady
+            ? AspectRatio(
+                aspectRatio: 1 / _controller!.value.aspectRatio,
+                child: _controller!.buildPreview(),
+              )
+            : Container(),
+        Positioned(
+          top: MediaQuery.of(context).size.height * 0.01,
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: null,
+                  child: Text('Total: ${total.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 20, color: Colors.red)),
                 ),
-              ),
+              ],
             ),
-          ]),
-          Padding(
-            padding:
-                EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.01),
-            child: SizedBox(
-              width: MediaQuery.of(context).size.width * 0.9,
-              child: FloatingActionButton(
-                // Provide an onPressed callback.
-                onPressed: () async {
-                  // Take the Picture in a try / catch block. If anything goes wrong,
-                  // catch the error.
-                  try {
-                    // Ensure that the camera is initialized.
-                    await _initializeControllerFuture;
+          ),
+        ),
+      ]),
+      Positioned(
+        bottom: MediaQuery.of(context).size.height * 0.2,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9,
+          child: Slider(
+            value: zoom,
 
-                    // Attempt to take a picture and get the file `image`
-                    // where it was saved.
-                    final image = await _controller.takePicture();
+            onChanged: (value) async {
+              setState(() {
+                zoom = value;
+              });
+              await _controller!.setZoomLevel(zoom);
+            },
+            min: minZoom,
+            max: maxZoom,
+            // divisions: maxZoom.toInt() - minZoom.toInt(),
+            label: zoom.toString(),
+          ),
+        ),
+      ),
+      Positioned(
+        bottom: MediaQuery.of(context).size.height * 0.1,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.05,
+          child: FloatingActionButton(
+            // Provide an onPressed callback.
+            onPressed: () async {
+              // Take the Picture in a try / catch block. If anything goes wrong,
+              // catch the error.
+              try {
+                // Ensure that the camera is initialized.
+                // await _initializeControllerFuture;
 
-                    if (!mounted) return;
+                // Attempt to take a picture and get the file `image`
+                // where it was saved.
+                final image = await _controller!.takePicture();
 
-                    // If the picture was taken, display it on a new screen.
-                    result = await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => DisplayPictureScreen(
-                          // Pass the automatically generated path to
-                          // the DisplayPictureScreen widget.
-                          imagePath: image.path,
-                          total: total,
-                        ),
-                      ),
-                    );
-                    setState(() {
-                      total += result;
-                    });
-                  } catch (e) {
-                    // If an error occurs, log the error to the console.
-                    debugPrint(e.toString());
-                  }
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.camera_alt),
-                    Padding(
-                      padding: EdgeInsets.only(left: 10),
-                      child: Text('Tomar foto'),
+                if (!mounted) return;
+
+                // If the picture was taken, display it on a new screen.
+                result = await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => DisplayPictureScreen(
+                      // Pass the automatically generated path to
+                      // the DisplayPictureScreen widget.
+                      imagePath: image.path,
+                      total: total,
                     ),
-                  ],
+                  ),
+                );
+                setState(() {
+                  total += result;
+                });
+              } catch (e) {
+                // If an error occurs, log the error to the console.
+                debugPrint(e.toString());
+              }
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.camera_alt),
+                Padding(
+                  padding: EdgeInsets.only(left: 10),
+                  child: Text('Tomar foto'),
                 ),
-              ),
+              ],
             ),
-          )
-        ]));
+          ),
+        ),
+      )
+    ]));
   }
 }
 
@@ -247,9 +305,14 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
         body: Stack(children: [
           // add a back button
 
-          Column(children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 50.0),
+          Stack(alignment: Alignment.center, children: [
+            Center(
+                child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20.0),
+                    child: Image.file(File(widget.imagePath)))),
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.04,
+              left: MediaQuery.of(context).size.width * 0.05,
               child: IconButton(
                 icon: const Row(
                     children: [Icon(Icons.arrow_back), Text('Volver')]),
@@ -258,15 +321,10 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
                 },
               ),
             ),
-            Center(
-                child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20.0),
-                    child: Image.file(File(widget.imagePath)))),
 
             // add a process button
-            Padding(
-              padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * 0.06),
+            Positioned(
+              bottom: MediaQuery.of(context).size.height * 0.03,
               child: SizedBox(
                 width: MediaQuery.of(context).size.width * 0.8,
                 child: FloatingActionButton(

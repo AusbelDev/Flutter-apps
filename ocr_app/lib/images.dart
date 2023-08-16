@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -12,54 +13,18 @@ class ImageExtractor extends StatefulWidget {
 class _ImageExtractorState extends State<ImageExtractor> {
   List<File> _pickedImages = [];
   List<String> _recognizedTexts = [];
+  List<List<List>> pagesText = [];
+  List<List<String>> pageText = [];
+  List<List<List>> compareTo = [];
+  List<double> pagesTotals = [];
   int _processedImageCount = 0;
   double maxTotal = 0;
   double discount = 0;
   double docTotal = 0;
-  bool appliedDiscount = false;
-  bool discountInput = false;
-  bool totalInput = false;
+  List<List<String>> result = [];
 
   // var maskFormatterThousands = MaskTextInputFormatter(
   //     mask: '###,###.##', filter: {"#": RegExp(r'[0-9]')});
-
-  void toogleDiscount() {
-    setState(() {
-      discountInput = !discountInput;
-    });
-  }
-
-  void toogleTotal() {
-    setState(() {
-      totalInput = !totalInput;
-    });
-  }
-
-  Widget _buildPopupMenu() {
-    return PopupMenuButton(
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 1,
-          child: !discountInput
-              ? const Text("Agregar descuento")
-              : const Text("Quitar descuento"),
-        ),
-        PopupMenuItem(
-          value: 2,
-          child: !totalInput
-              ? const Text("Agregar total")
-              : const Text("Quitar total"),
-        ),
-      ],
-      onSelected: (value) {
-        if (value == 1) {
-          toogleDiscount();
-        } else if (value == 2) {
-          toogleTotal();
-        }
-      },
-    );
-  }
 
   Future<void> _pickImages() async {
     final imagePicker = ImagePicker();
@@ -76,7 +41,7 @@ class _ImageExtractorState extends State<ImageExtractor> {
             pickedImages.map((pickedImage) => File(pickedImage.path)).toList();
         _recognizedTexts = List<String>.filled(_pickedImages.length, '');
       } else {
-        debugPrint('No images selected.');
+        debugPrint('No has seleccionado ninguna imagen');
       }
     });
 
@@ -85,17 +50,20 @@ class _ImageExtractorState extends State<ImageExtractor> {
 
   Future<void> _processImages() async {
     final textDetector = TextRecognizer();
-
+    pageText = [];
+    pagesText = [];
+    pagesTotals = [];
     String filteredText = '';
     for (int i = 0; i < _pickedImages.length; i++) {
+      pageText = [];
+
       final inputImage = InputImage.fromFile(_pickedImages[i]);
       final RecognizedText recognisedText =
           await textDetector.processImage(inputImage);
 
       // String recognizedText = '';
-      appliedDiscount = false;
       double total = 0;
-      debugPrint(discount.toString());
+      // debugPrint(discount.toString());
       for (TextBlock block in recognisedText.blocks) {
         for (TextLine line in block.lines) {
           // recognizedText += '${line.text}\n';
@@ -105,12 +73,17 @@ class _ImageExtractorState extends State<ImageExtractor> {
           if (filteredText.isEmpty) {
             continue;
           }
-          debugPrint("Extracted: $filteredText");
+          // debugPrint("Extracted: $filteredText");
           var exp = RegExp(r',');
           if (exp.allMatches(filteredText).length > 1) {
             int lastCommaIndex = filteredText.lastIndexOf(exp);
-            filteredText = filteredText.replaceRange(
-                lastCommaIndex, lastCommaIndex + 1, '.');
+            // debugPrint("Last comma index: $lastCommaIndex");
+            // debugPrint("Length: ${filteredText.length}");
+            if (filteredText.length - 1 - lastCommaIndex == 2) {
+              filteredText = filteredText.replaceRange(
+                  lastCommaIndex, lastCommaIndex + 1, '.');
+              // debugPrint("Change comma for dot $filteredText");
+            }
           }
           if (filteredText.contains(',') && filteredText.contains('.')) {
             // If it does, remove the comma
@@ -126,250 +99,233 @@ class _ImageExtractorState extends State<ImageExtractor> {
 
           if (double.tryParse(filteredText.replaceAll(RegExp('[^0-9.]'), '')) !=
               null) {
-            if (double.parse(filteredText) == discount && !appliedDiscount) {
-              // debugPrint("Discount: $discount");
-              total -= discount;
-              appliedDiscount = true;
-            } else {
-              total +=
-                  double.parse(filteredText.replaceAll(RegExp('[^0-9.]'), ''));
-              debugPrint("Total: $total");
-            }
+            pageText.add([filteredText, '-']);
+            total +=
+                double.parse(filteredText.replaceAll(RegExp('[^0-9.]'), ''));
+            // debugPrint("Total: $total");
           }
         }
       }
+      pagesTotals.add(total);
       maxTotal += total;
       _processedImageCount++;
+      pagesText.add(pageText);
 
       setState(() {
-        _recognizedTexts[i] = !appliedDiscount
-            ? 'Total de página: \$${total.toStringAsFixed(2)}'
-            : 'Total de página + descuento: \$${total.toStringAsFixed(2)}';
+        _recognizedTexts[i] = 'Subtotal: \$${total.toStringAsFixed(2)}';
+        pagesText = pagesText;
+        compareTo = pagesText;
       });
-    }
-    if (docTotal != maxTotal && appliedDiscount == false) {
-      maxTotal -= discount;
-      appliedDiscount = true;
     }
 
     textDetector.close();
   }
 
+  List<String> _makeNewSum(pageData) {
+    double newTotal = 0;
+    double minusTotal = 0;
+    for (int i = 0; i < pageData.length; i++) {
+      newTotal +=
+          double.parse(pageData[i][0].replaceAll(RegExp('[^0-9.]'), ''));
+      if (pageData[i][1] == '+') {
+        minusTotal -=
+            double.parse(pageData[i][0].replaceAll(RegExp('[^0-9.]'), ''));
+      }
+    }
+    newTotal = newTotal + minusTotal;
+    return ['Subtotal: \$${newTotal.toStringAsFixed(2)}', newTotal.toString()];
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Stack(
       children: [
-        if (discountInput)
-          Row(
-            children: [
-              Padding(
-                padding: EdgeInsets.only(
-                    top: 20,
-                    bottom: 10,
-                    left: MediaQuery.of(context).size.width / 8),
-                child: SizedBox(
-                  width: 250,
-                  height: 50,
-                  child: TextField(
-                    // obscureText: true,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(
-                        border: OutlineInputBorder(), labelText: 'Descuento'),
-                    controller: discount == 0
-                        ? null
-                        : TextEditingController(text: discount.toString()),
-                    onChanged: (value) {
-                      if (double.tryParse(value) != null) {
-                        discount = double.parse(value);
-                      }
-                    },
-                    // inputFormatters: [maskFormatterThousands],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 8, left: 15),
-                child: SizedBox(
-                  width: 50,
-                  height: 30,
-                  child: FilledButton.tonal(
-                      onPressed: toogleDiscount,
-                      style: ButtonStyle(
-                        padding:
-                            MaterialStateProperty.all(const EdgeInsets.all(0)),
-                        backgroundColor:
-                            MaterialStateProperty.all<Color>(Colors.red),
-                        // iconSize: MaterialStateProperty.all(30),
-                        shape:
-                            MaterialStateProperty.all<RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20.0))),
-                        fixedSize:
-                            MaterialStateProperty.all<Size>(const Size(20, 20)),
-                      ),
-                      child: const Icon(Icons.remove)),
-                ),
-              )
-            ],
-          ),
-        if (totalInput)
-          Row(
-            children: [
-              Padding(
-                padding: EdgeInsets.only(
-                    top: 8,
-                    bottom: 20,
-                    left: MediaQuery.of(context).size.width / 8),
-                child: SizedBox(
-                  width: 250,
-                  height: 50,
-                  child: TextField(
-                    // obscureText: true,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(
-                        border: OutlineInputBorder(), labelText: 'Total'),
-                    controller: docTotal == 0
-                        ? null
-                        : TextEditingController(text: docTotal.toString()),
-                    onChanged: (value) {
-                      if (double.tryParse(value) != null) {
-                        docTotal = double.parse(value);
-                      }
-                    },
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 15, bottom: 10),
-                child: SizedBox(
-                  width: 50,
-                  height: 30,
-                  child: FilledButton.tonal(
-                      onPressed: toogleTotal,
-                      style: ButtonStyle(
-                        padding:
-                            MaterialStateProperty.all(const EdgeInsets.all(0)),
-                        backgroundColor:
-                            MaterialStateProperty.all<Color>(Colors.red),
-                        // iconSize: MaterialStateProperty.all(30),
-                        shape:
-                            MaterialStateProperty.all<RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20.0))),
-                        fixedSize:
-                            MaterialStateProperty.all<Size>(const Size(20, 20)),
-                      ),
-                      child: const Icon(Icons.remove)),
-                ),
-              )
-            ],
-          ),
         _pickedImages.isEmpty
-            ? const Expanded(child: Center(child: Text('No images selected.')))
-            : Expanded(
-                child: ListView.builder(
-                  itemCount: _pickedImages.length,
-                  itemBuilder: (BuildContext context, int index) {
-                    return Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        children: [
-                          Image.file(
-                            _pickedImages[index],
-                            height: 200,
-                            width: 80,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Center(
-                              child: Text(
-                                _recognizedTexts[index],
-                                style: const TextStyle(
-                                    fontSize: 20, color: Colors.blueGrey),
-                              ),
+            ? const Center(child: Text('No has seleccionado ninguna imagen'))
+            : ListView.builder(
+                itemCount: _pickedImages.length,
+                itemBuilder: (BuildContext context, int index) {
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.file(
+                          _pickedImages[index],
+                          height: 200,
+                          width: 80,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              _recognizedTexts[index],
+                              style: const TextStyle(
+                                  fontSize: 20, color: Colors.white),
                             ),
                           ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                        ),
+                        IconButton(
+                            onPressed: () async {
+                              result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          ImagePage(pagesText[index])));
+
+                              List<String> newPageTotal = _makeNewSum(result);
+
+                              setState(() {
+                                pagesText[index] = result;
+                                _recognizedTexts[index] = newPageTotal[0];
+                                pagesTotals[index] =
+                                    double.parse(newPageTotal[1]);
+                                maxTotal = pagesTotals.sum;
+                              });
+                            },
+                            icon: const Icon(Icons.more_vert))
+                      ],
+                    ),
+                  );
+                },
               ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).size.height * 0.05,
-                right: MediaQuery.of(context).size.width * 0.5,
-              ),
-              child: Align(
-                alignment: const Alignment(-0.9, 0.5),
-                child: FloatingActionButton(
-                  // backgroundColor: const Color.fromRGBO(26, 93, 26, 1),
-                  onPressed: _buildPopupMenu,
-                  child: _buildPopupMenu(),
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).size.height * 0.05,
-              ),
-              child: Align(
-                alignment: const Alignment(0.9, 0.5),
+        Positioned(
+          bottom: MediaQuery.of(context).size.height * 0.11,
+          left: MediaQuery.of(context).size.width * 0.1,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: MediaQuery.of(context).size.width * 0.8,
                 child: FloatingActionButton(
                   // backgroundColor: const Color.fromRGBO(26, 93, 26, 1),
                   onPressed: _pickImages,
-                  child: const Icon(Icons.photo_library),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.photo_library),
+                      Padding(
+                        padding: EdgeInsets.only(left: 10),
+                        child: Text('Seleccionar imágenes'),
+                      )
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         if (_pickedImages.isNotEmpty)
-          BottomAppBar(
-            // color: const Color.fromRGBO(26, 93, 26, 1),
-            color: Colors.transparent,
-            elevation: 0,
-            height: 100,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: _processedImageCount / _pickedImages.length,
-                      backgroundColor: Colors.white,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                          Colors.blueAccent),
+          Positioned(
+            bottom: MediaQuery.of(context).size.height * 0.02,
+            left: MediaQuery.of(context).size.width * 0.05,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.blueGrey.withOpacity(0.6),
+              ),
+              width: MediaQuery.of(context).size.width * 0.9,
+              height: MediaQuery.of(context).size.height * 0.08,
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.8,
+                      child: LinearProgressIndicator(
+                        value: _processedImageCount / _pickedImages.length,
+                        backgroundColor: Colors.blueGrey,
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.orange),
+                      ),
                     ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    'Total de documento: \$${maxTotal.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      backgroundColor: Colors.transparent,
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.8,
+                      child: Center(
+                        child: Text(
+                          'Total: \$${maxTotal.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            backgroundColor: Colors.transparent,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    'Progreso: ${(_processedImageCount / _pickedImages.length * 100).toStringAsFixed(1)}%',
-                    style: const TextStyle(
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-              ],
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.8,
+                      child: Center(
+                        child: Text(
+                          'Progreso: ${(_processedImageCount / _pickedImages.length * 100).toStringAsFixed(1)}%',
+                          style: const TextStyle(
+                              fontSize: 20, color: Colors.orange),
+                        ),
+                      ),
+                    )
+                  ]),
             ),
           ),
       ],
+    );
+  }
+}
+
+class ImagePage extends StatefulWidget {
+  final List<List> pageText;
+  const ImagePage(this.pageText, {super.key});
+
+  @override
+  State<ImagePage> createState() => _ImagePageState();
+}
+
+class _ImagePageState extends State<ImagePage> {
+  List<List> pageTextDetail = [];
+  @override
+  void initState() {
+    pageTextDetail = widget.pageText;
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, pageTextDetail);
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Detalles'),
+        ),
+        body: ListView.builder(
+          itemCount: pageTextDetail.length,
+          itemBuilder: (BuildContext context, int index) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.25,
+                  child: TextButton(
+                      style: ButtonStyle(
+                          padding: MaterialStateProperty.all(
+                              const EdgeInsets.all(0))),
+                      onPressed: () {
+                        setState(() {
+                          pageTextDetail[index][1] =
+                              pageTextDetail[index][1] == '-' ? '+' : '-';
+                        });
+                      },
+                      child: pageTextDetail[index][1] == '-'
+                          ? const Icon(Icons.remove, color: Colors.red)
+                          : const Icon(Icons.add, color: Colors.green)),
+                ),
+                SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.25,
+                    child: Center(child: Text('${pageTextDetail[index][0]}'))),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }

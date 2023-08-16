@@ -233,7 +233,7 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
       body: Stack(
         children: <Widget>[
           pdfFile == ''
-              ? const Center(child: Text('No file selected.'))
+              ? const Center(child: Text('No hay archivo seleccionado'))
               : GestureDetector(
                   onPanStart: isDragging ? _handlePanStart : (details) => {},
                   onPanUpdate: isDragging ? _handlePanUpdate : (details) => {},
