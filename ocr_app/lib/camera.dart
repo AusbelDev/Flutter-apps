@@ -26,6 +26,9 @@ class TakePictureScreenState extends State<TakePictureScreen> {
   double maxZoom = 1;
   double minZoom = 1;
   bool isCameraReady = false;
+  bool showFocusCircle = false;
+  double x = 0;
+  double y = 0;
 
   void onNewCameraSelected(CameraDescription cameraDescription) async {
     final previousCameraController = _controller;
@@ -57,6 +60,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       await cameraController.initialize();
       _controller?.getMaxZoomLevel().then((value) => maxZoom = value);
       _controller?.getMinZoomLevel().then((value) => minZoom = value);
+      _controller?.setFocusMode(FocusMode.locked);
     } on CameraException catch (e) {
       debugPrint('Error initializing camera: $e');
     }
@@ -64,6 +68,37 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     if (mounted) {
       setState(() {
         isCameraReady = _controller!.value.isInitialized;
+      });
+    }
+  }
+
+  Future<void> _onTap(TapUpDetails details) async {
+    if (_controller!.value.isInitialized) {
+      showFocusCircle = true;
+      x = details.localPosition.dx;
+      y = details.localPosition.dy;
+
+      double fullWidth = MediaQuery.of(context).size.width;
+      double cameraHeight = fullWidth * _controller!.value.aspectRatio;
+
+      double xp = x / fullWidth;
+      double yp = y / cameraHeight;
+
+      Offset point = Offset(xp, yp);
+      debugPrint("point : $point");
+
+      // Manually focus
+      await _controller?.setFocusPoint(point);
+
+      // Manually set light exposure
+      //controller.setExposurePoint(point);
+
+      setState(() {
+        Future.delayed(const Duration(seconds: 2)).whenComplete(() {
+          setState(() {
+            showFocusCircle = false;
+          });
+        });
       });
     }
   }
@@ -104,9 +139,14 @@ class TakePictureScreenState extends State<TakePictureScreen> {
         body: Stack(alignment: Alignment.center, children: <Widget>[
       Stack(children: [
         isCameraReady
-            ? AspectRatio(
-                aspectRatio: 1 / _controller!.value.aspectRatio,
-                child: _controller!.buildPreview(),
+            ? GestureDetector(
+                onTapUp: (details) {
+                  _onTap(details);
+                },
+                child: AspectRatio(
+                  aspectRatio: 1 / _controller!.value.aspectRatio,
+                  child: _controller!.buildPreview(),
+                ),
               )
             : Container(),
         Positioned(
@@ -360,7 +400,8 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
                           Row(children: [
                             SizedBox(
                               child: TextButton(
-                                child: const Icon(Icons.remove),
+                                child:
+                                    const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () {
                                   setState(() {
                                     extractedNumbers.removeAt(i);
