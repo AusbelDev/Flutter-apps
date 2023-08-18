@@ -6,12 +6,11 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 
 // A screen that allows users to take a picture using a given camera.
 class TakePictureScreen extends StatefulWidget {
-  const TakePictureScreen({
-    super.key,
-    required this.camera,
-  });
+  const TakePictureScreen(
+      {super.key, required this.camera, required this.foreignCurrency});
 
   final CameraDescription camera;
+  final bool foreignCurrency;
 
   @override
   TakePictureScreenState createState() => TakePictureScreenState();
@@ -108,18 +107,6 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     super.initState();
 
     onNewCameraSelected(widget.camera);
-    // To display the current output from the Camera,
-    // create a CameraController.
-    // _controller = CameraController(
-    //   // Get a specific camera from the list of available cameras.
-    //   widget.camera,
-    //   // Define the resolution to use.
-    //   ResolutionPreset.low,
-    //   enableAudio: false,
-    // );
-
-    // Next, initialize the controller. This returns a Future.
-    // _initializeControllerFuture = _controller.initialize();
   }
 
   @override
@@ -214,6 +201,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                       // the DisplayPictureScreen widget.
                       imagePath: image.path,
                       total: total,
+                      foreignCurrency: widget.foreignCurrency,
                     ),
                   ),
                 );
@@ -245,9 +233,13 @@ class TakePictureScreenState extends State<TakePictureScreen> {
 class DisplayPictureScreen extends StatefulWidget {
   final String imagePath;
   final double total;
+  final bool foreignCurrency;
 
   const DisplayPictureScreen(
-      {super.key, required this.imagePath, required this.total});
+      {super.key,
+      required this.imagePath,
+      required this.total,
+      required this.foreignCurrency});
 
   @override
   State<DisplayPictureScreen> createState() => DisplayPictureScreenState();
@@ -281,6 +273,59 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
     });
   }
 
+  String _extractNationalCurrency(String text) {
+    String filteredText = text;
+    var exp = RegExp(r',');
+    if (exp.allMatches(filteredText).length > 1) {
+      int lastCommaIndex = filteredText.lastIndexOf(exp);
+      // debugPrint("Last comma index: $lastCommaIndex");
+      // debugPrint("Length: ${filteredText.length}");
+      if (filteredText.length - 1 - lastCommaIndex == 2) {
+        filteredText =
+            filteredText.replaceRange(lastCommaIndex, lastCommaIndex + 1, '.');
+        // debugPrint("Change comma for dot $filteredText");
+      }
+    }
+    if (filteredText.contains(',') && filteredText.contains('.')) {
+      // If it does, remove the comma
+      filteredText = filteredText.replaceAll(',', '');
+      // debugPrint("Remove comma: $filteredText");
+    }
+    // Check if the line contains a comma
+    else if (filteredText.contains(',')) {
+      // If it does, replace it with a dot
+      filteredText = filteredText.replaceAll(',', '.');
+      // debugPrint("Change comma for dot $filteredText");
+    }
+    return filteredText;
+  }
+
+  String _extractForeignCurrency(String text) {
+    String filteredText = text;
+    var exp = RegExp(r'\.');
+    if (exp.allMatches(filteredText).length > 1) {
+      int lastDotIndex = filteredText.lastIndexOf(exp);
+      // debugPrint("Last comma index: $lastCommaIndex");
+      // debugPrint("Length: ${filteredText.length}");
+      if (filteredText.length - 1 - lastDotIndex == 2) {
+        filteredText =
+            filteredText.replaceRange(lastDotIndex, lastDotIndex + 1, ',');
+        // debugPrint("Change comma for dot $filteredText");
+      }
+    }
+    if (filteredText.contains(',') && filteredText.contains('.')) {
+      filteredText = filteredText.replaceAll('.', '');
+      // debugPrint("Remove comma: $filteredText");
+    }
+    // Check if the line contains a comma
+    else if (filteredText.contains('.')) {
+      // If it does, replace it with a dot
+      filteredText = filteredText.replaceAll('.', ',');
+      // debugPrint("Change comma for dot $filteredText");
+    }
+    return filteredText;
+  }
+
   Future<void> extractText(imagePath) async {
     extractedText.clear();
     extractedNumbers.clear();
@@ -294,33 +339,25 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
         // recognizedText += '${line.text}\n';
         // Check if the line contains a comma and a dot
         filteredText = line.text;
-        filteredText = filteredText.replaceAll(RegExp('[a-zA-Z \$]'), '');
+        filteredText = filteredText.replaceAll(RegExp(r'[^.,\d]'), '');
         if (filteredText.isEmpty || filteredText.contains('-')) {
           continue;
         }
-        debugPrint("Extracted: $filteredText");
-        var exp = RegExp(r',');
-        if (exp.allMatches(filteredText).length > 1) {
-          int lastCommaIndex = filteredText.lastIndexOf(exp);
-          filteredText = filteredText.replaceRange(
-              lastCommaIndex, lastCommaIndex + 1, '.');
-        }
-        if (filteredText.contains(',') && filteredText.contains('.')) {
-          // If it does, remove the comma
-          filteredText = filteredText.replaceAll(',', '');
-          // debugPrint("Remove comma: $filteredText");
-        }
-        // Check if the line contains a comma
-        else if (filteredText.contains(',')) {
-          // If it does, replace it with a dot
-          filteredText = filteredText.replaceAll(',', '.');
-          // debugPrint("Change comma for dot $filteredText");
-        }
 
-        if (double.tryParse(filteredText.replaceAll(RegExp('[^0-9.]'), '')) !=
-            null) {
-          extractedNumbers.add([filteredText, '-']);
-          debugPrint("Total: $sum");
+        if (widget.foreignCurrency) {
+          filteredText = _extractForeignCurrency(filteredText);
+          if (double.tryParse(filteredText.replaceAll(RegExp('[^0-9,]'), '')) !=
+              null) {
+            extractedNumbers.add([filteredText, '-']);
+            // debugPrint("Total: $sum");
+          }
+        } else {
+          filteredText = _extractNationalCurrency(filteredText);
+          if (double.tryParse(filteredText.replaceAll(RegExp('[^0-9.]'), '')) !=
+              null) {
+            extractedNumbers.add([filteredText, '-']);
+            // debugPrint("Total: $sum");
+          }
         }
       }
     }

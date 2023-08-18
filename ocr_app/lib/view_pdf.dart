@@ -5,17 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
+// import 'package:path_provider/path_provider.dart';
 
 class PdfBoxSelector extends StatefulWidget {
-  const PdfBoxSelector({super.key});
+  const PdfBoxSelector({super.key, required this.foreignCurrency});
+  final bool foreignCurrency;
 
   @override
   State<PdfBoxSelector> createState() => _PdfBoxSelectorState();
 }
 
 class _PdfBoxSelectorState extends State<PdfBoxSelector> {
-  // final GlobalKey _pdfKey = GlobalKey();
   final PdfViewerController _pdfViewerController = PdfViewerController();
 
   // Coordinates of the box to be drawn
@@ -42,6 +42,7 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
   double sum = 0;
   bool dialog = false;
   double viewOffset = 0;
+  List pagesTotals = [];
 
   void selectPdfFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -83,14 +84,14 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     pdfOffsetY = _pdfViewerController.scrollOffset.dy;
     viewOffset = containerWidth * (_pdfViewerController.pageNumber - 1) -
         4 * (_pdfViewerController.pageNumber - 1);
-    debugPrint('viewOffset: $viewOffset');
-    debugPrint('pdfPageWidth: $pdfPageWidth, pdfPageHeight: $pdfPageHeight');
-    debugPrint('pdfOffsetX: $pdfOffsetX, pdfOffsetY: $pdfOffsetY');
-    debugPrint(
-        'containerWidth: $containerWidth, containerHeight: $containerHeight');
+    //debugPrint('viewOffset: $viewOffset');
+    //debugPrint('pdfPageWidth: $pdfPageWidth, pdfPageHeight: $pdfPageHeight');
+    //debugPrint('pdfOffsetX: $pdfOffsetX, pdfOffsetY: $pdfOffsetY');
+    //debugPrint(
+    // 'containerWidth: $containerWidth, containerHeight: $containerHeight');
     // Get the current zoom level of the PDF viewer
     double zoomLevel = _pdfViewerController.zoomLevel;
-    debugPrint('zoomLevel: $zoomLevel');
+    //debugPrint('zoomLevel: $zoomLevel');
     // Convert box coordinates to pdf coordinates
     double pdfRatio = pdfPageWidth / pdfPageHeight;
     scaledContainerHeight = containerWidth / pdfRatio;
@@ -130,11 +131,16 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     });
   }
 
-  String _extractNumbers(String text) {
-    debugPrint('Text: $text');
+  String _extractNumbers(String text, bool foreignCurrency) {
+    //debugPrint('Text: $text');
     var number = '';
-    RegExp regExp = RegExp(r'\d*,?\d+\.\d+');
-    number = regExp.stringMatch(text) ?? '';
+    if (!foreignCurrency) {
+      RegExp regExp = RegExp(r'\d*,\d*,?\d+\.\d+');
+      number = regExp.stringMatch(text) ?? '';
+    } else if (foreignCurrency) {
+      RegExp regExp = RegExp(r'\d*\.\d*\.?\d+,\d+');
+      number = regExp.stringMatch(text) ?? '';
+    }
     return number;
   }
 
@@ -145,10 +151,11 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
           -1;
     }
 
-    debugPrint('Sum: $sum');
+    //debugPrint('Sum: $sum');
 
     setState(() {
       sum = sum;
+      pagesTotals[pagesTotals.length - 1][1] = sum;
     });
   }
 
@@ -159,6 +166,11 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
   }
 
   Future<List<int>> _readDocumentData(String name) async {
+    sum = 0;
+    extractedNumbers.clear();
+    extractedText.clear();
+    pagesTotals.clear();
+
     final file = File(name);
     // final ByteData data = await rootBundle.load(name);
     final data = await file.readAsBytes();
@@ -187,35 +199,36 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
 
     Rect textBounds = Rect.fromLTWH(
         (boxStartX), (boxStartY), (boxEndX - boxStartX), (boxEndY - boxStartY));
-    debugPrint('textBounds: $textBounds');
+    //debugPrint('textBounds: $textBounds');
 
     //Save and launch the file.
     for (int i = 0; i < result.length; i++) {
       List<TextWord> wordCollection = result[i].wordCollection;
       for (int j = 0; j < wordCollection.length; j++) {
         if (textBounds.overlaps(wordCollection[j].bounds)) {
-          String number = _extractNumbers(wordCollection[j].text);
+          String number =
+              _extractNumbers(wordCollection[j].text, widget.foreignCurrency);
           extractedText.add(number);
         }
       }
     }
-    debugPrint('currentPage: $currentPage');
-    document.pages[currentPage - 1].annotations.add(PdfRectangleAnnotation(
-        textBounds, 'Rectangle',
-        color: PdfColor(255, 0, 0), setAppearance: true));
+    //debugPrint('currentPage: $currentPage');
+    // document.pages[currentPage - 1].annotations.add(PdfRectangleAnnotation(
+    //     textBounds, 'Rectangle',
+    //     color: PdfColor(255, 0, 0), setAppearance: true));
 
 //Save the document.
-    final directory = await getApplicationDocumentsDirectory();
+    // final directory = await getApplicationDocumentsDirectory();
 
-    final localPath = directory.path;
-    final path = localPath;
+    // final localPath = directory.path;
+    // final path = localPath;
 
-    File('$path/annotations.pdf').writeAsBytes(await document.save());
+    // File('$path/annotations.pdf').writeAsBytes(await document.save());
 
     document.dispose();
 
     for (int i = 0; i < extractedText.length; i++) {
-      debugPrint('extractedText: ${extractedText[i]}');
+      //debugPrint('extractedText: ${extractedText[i]}');
       if (extractedText[i] != '') {
         extractedNumbers.add([extractedText[i], '-']);
       }
@@ -224,6 +237,7 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     // _showDialog(extractedNumbers.join('\n'));
     setState(() {
       dialog = true;
+      pagesTotals.add([currentPage, 0]);
     });
   }
 

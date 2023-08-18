@@ -3,9 +3,11 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:hidable/hidable.dart';
 
 class ImageExtractor extends StatefulWidget {
-  const ImageExtractor({Key? key}) : super(key: key);
+  const ImageExtractor({super.key, required this.foreignCurrency});
+  final bool foreignCurrency;
   @override
   State<ImageExtractor> createState() => _ImageExtractorState();
 }
@@ -22,6 +24,7 @@ class _ImageExtractorState extends State<ImageExtractor> {
   double discount = 0;
   double docTotal = 0;
   List<List<String>> result = [];
+  final ScrollController _scrollController = ScrollController();
 
   // var maskFormatterThousands = MaskTextInputFormatter(
   //     mask: '###,###.##', filter: {"#": RegExp(r'[0-9]')});
@@ -48,6 +51,59 @@ class _ImageExtractorState extends State<ImageExtractor> {
     _processImages();
   }
 
+  String _extractNationalCurrency(String text) {
+    String filteredText = text;
+    var exp = RegExp(r',');
+    if (exp.allMatches(filteredText).length > 1) {
+      int lastCommaIndex = filteredText.lastIndexOf(exp);
+      // debugPrint("Last comma index: $lastCommaIndex");
+      // debugPrint("Length: ${filteredText.length}");
+      if (filteredText.length - 1 - lastCommaIndex == 2) {
+        filteredText =
+            filteredText.replaceRange(lastCommaIndex, lastCommaIndex + 1, '.');
+        // debugPrint("Change comma for dot $filteredText");
+      }
+    }
+    if (filteredText.contains(',') && filteredText.contains('.')) {
+      // If it does, remove the comma
+      filteredText = filteredText.replaceAll(',', '');
+      // debugPrint("Remove comma: $filteredText");
+    }
+    // Check if the line contains a comma
+    else if (filteredText.contains(',')) {
+      // If it does, replace it with a dot
+      filteredText = filteredText.replaceAll(',', '.');
+      // debugPrint("Change comma for dot $filteredText");
+    }
+    return filteredText;
+  }
+
+  String _extractForeignCurrency(String text) {
+    String filteredText = text;
+    var exp = RegExp(r'\.');
+    if (exp.allMatches(filteredText).length > 1) {
+      int lastDotIndex = filteredText.lastIndexOf(exp);
+      // debugPrint("Last comma index: $lastCommaIndex");
+      // debugPrint("Length: ${filteredText.length}");
+      if (filteredText.length - 1 - lastDotIndex == 2) {
+        filteredText =
+            filteredText.replaceRange(lastDotIndex, lastDotIndex + 1, ',');
+        // debugPrint("Change comma for dot $filteredText");
+      }
+    }
+    if (filteredText.contains(',') && filteredText.contains('.')) {
+      filteredText = filteredText.replaceAll('.', '');
+      // debugPrint("Remove comma: $filteredText");
+    }
+    // Check if the line contains a comma
+    else if (filteredText.contains('.')) {
+      // If it does, replace it with a dot
+      filteredText = filteredText.replaceAll('.', ',');
+      // debugPrint("Change comma for dot $filteredText");
+    }
+    return filteredText;
+  }
+
   Future<void> _processImages() async {
     final textDetector = TextRecognizer();
     pageText = [];
@@ -66,43 +122,33 @@ class _ImageExtractorState extends State<ImageExtractor> {
       // debugPrint(discount.toString());
       for (TextBlock block in recognisedText.blocks) {
         for (TextLine line in block.lines) {
-          // recognizedText += '${line.text}\n';
           // Check if the line contains a comma and a dot
           filteredText = line.text;
-          filteredText = filteredText.replaceAll(RegExp('[a-zA-Z \$ |]'), '');
+          filteredText = filteredText.replaceAll(RegExp(r'[^.,\d]'), '');
           if (filteredText.isEmpty) {
             continue;
           }
-          // debugPrint("Extracted: $filteredText");
-          var exp = RegExp(r',');
-          if (exp.allMatches(filteredText).length > 1) {
-            int lastCommaIndex = filteredText.lastIndexOf(exp);
-            // debugPrint("Last comma index: $lastCommaIndex");
-            // debugPrint("Length: ${filteredText.length}");
-            if (filteredText.length - 1 - lastCommaIndex == 2) {
-              filteredText = filteredText.replaceRange(
-                  lastCommaIndex, lastCommaIndex + 1, '.');
-              // debugPrint("Change comma for dot $filteredText");
-            }
-          }
-          if (filteredText.contains(',') && filteredText.contains('.')) {
-            // If it does, remove the comma
-            filteredText = filteredText.replaceAll(',', '');
-            // debugPrint("Remove comma: $filteredText");
-          }
-          // Check if the line contains a comma
-          else if (filteredText.contains(',')) {
-            // If it does, replace it with a dot
-            filteredText = filteredText.replaceAll(',', '.');
-            // debugPrint("Change comma for dot $filteredText");
-          }
 
-          if (double.tryParse(filteredText.replaceAll(RegExp('[^0-9.]'), '')) !=
-              null) {
-            pageText.add([filteredText, '-']);
-            total +=
-                double.parse(filteredText.replaceAll(RegExp('[^0-9.]'), ''));
-            // debugPrint("Total: $total");
+          if (widget.foreignCurrency) {
+            filteredText = _extractForeignCurrency(filteredText);
+            if (double.tryParse(
+                    filteredText.replaceAll(RegExp('[^0-9,]'), '')) !=
+                null) {
+              pageText.add([filteredText, '-']);
+              total +=
+                  double.parse(filteredText.replaceAll(RegExp('[^0-9,]'), ''));
+              // debugPrint("Total: $total");
+            }
+          } else {
+            filteredText = _extractNationalCurrency(filteredText);
+            if (double.tryParse(
+                    filteredText.replaceAll(RegExp('r[^0-9.]'), '')) !=
+                null) {
+              pageText.add([filteredText, '-']);
+              total +=
+                  double.parse(filteredText.replaceAll(RegExp('r[^0-9.]'), ''));
+              // debugPrint("Total: $total");
+            }
           }
         }
       }
@@ -143,6 +189,7 @@ class _ImageExtractorState extends State<ImageExtractor> {
         _pickedImages.isEmpty
             ? const Center(child: Text('No has seleccionado ninguna imagen'))
             : ListView.builder(
+                controller: _scrollController,
                 itemCount: _pickedImages.length,
                 itemBuilder: (BuildContext context, int index) {
                   return Padding(
@@ -192,27 +239,30 @@ class _ImageExtractorState extends State<ImageExtractor> {
         Positioned(
           bottom: MediaQuery.of(context).size.height * 0.11,
           left: MediaQuery.of(context).size.width * 0.1,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8,
-                child: FloatingActionButton(
-                  // backgroundColor: const Color.fromRGBO(26, 93, 26, 1),
-                  onPressed: _pickImages,
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.photo_library),
-                      Padding(
-                        padding: EdgeInsets.only(left: 10),
-                        child: Text('Seleccionar imágenes'),
-                      )
-                    ],
+          child: Hidable(
+            controller: _scrollController,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  child: FloatingActionButton(
+                    // backgroundColor: const Color.fromRGBO(26, 93, 26, 1),
+                    onPressed: _pickImages,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.photo_library),
+                        Padding(
+                          padding: EdgeInsets.only(left: 10),
+                          child: Text('Seleccionar imágenes'),
+                        )
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         if (_pickedImages.isNotEmpty)
