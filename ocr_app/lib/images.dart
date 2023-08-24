@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:hidable/hidable.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class ImageExtractor extends StatefulWidget {
   const ImageExtractor({super.key, required this.foreignCurrency});
@@ -189,11 +190,18 @@ class _ImageExtractorState extends State<ImageExtractor> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Center(
-                            child: Text(
-                              _recognizedTexts[index],
-                              style: const TextStyle(
-                                  fontSize: 20, color: Colors.white),
-                            ),
+                            child:
+                                // add a loading animation widget until the text is recognized
+                                _recognizedTexts[index] == ''
+                                    ? LoadingAnimationWidget.threeArchedCircle(
+                                        size: 50,
+                                        color: Colors.white,
+                                      )
+                                    : Text(
+                                        _recognizedTexts[index],
+                                        style: const TextStyle(
+                                            fontSize: 20, color: Colors.white),
+                                      ),
                           ),
                         ),
                         IconButton(

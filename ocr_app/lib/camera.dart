@@ -186,7 +186,6 @@ class TakePictureScreenState extends State<TakePictureScreen> {
           width: MediaQuery.of(context).size.width * 0.9,
           child: Slider(
             value: zoom,
-
             onChanged: (value) async {
               setState(() {
                 zoom = value;
@@ -195,7 +194,6 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             },
             min: minZoom,
             max: maxZoom,
-            // divisions: maxZoom.toInt() - minZoom.toInt(),
             label: zoom.toString(),
           ),
         ),
@@ -212,7 +210,6 @@ class TakePictureScreenState extends State<TakePictureScreen> {
               // catch the error.
               try {
                 // Ensure that the camera is initialized.
-                // await _initializeControllerFuture;
 
                 // Attempt to take a picture and get the file `image`
                 // where it was saved.
@@ -293,8 +290,6 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
           -1;
     }
 
-    debugPrint('Sum: $sum');
-
     setState(() {
       sum = sum;
     });
@@ -333,8 +328,6 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
     var exp = RegExp(r'\.');
     if (exp.allMatches(filteredText).length > 1) {
       int lastDotIndex = filteredText.lastIndexOf(exp);
-      // debugPrint("Last comma index: $lastCommaIndex");
-      // debugPrint("Length: ${filteredText.length}");
       if (filteredText.length - 1 - lastDotIndex == 2) {
         filteredText =
             filteredText.replaceRange(lastDotIndex, lastDotIndex + 1, ',');

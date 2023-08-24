@@ -50,6 +50,7 @@ dependencies:
   collection: ^1.17.1
   hidable: ^1.0.4
   excel: ^2.1.0
+  loading_animation_widget: ^1.2.0+4
 dev_dependencies:
   flutter_test:
     sdk: flutter
