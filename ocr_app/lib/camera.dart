@@ -1,16 +1,22 @@
+import 'dart:ffi';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'excel.dart';
 
 // A screen that allows users to take a picture using a given camera.
 class TakePictureScreen extends StatefulWidget {
   const TakePictureScreen(
-      {super.key, required this.camera, required this.foreignCurrency});
+      {super.key,
+      required this.camera,
+      required this.foreignCurrency,
+      required this.dataType});
 
   final CameraDescription camera;
   final bool foreignCurrency;
+  final Type dataType;
 
   @override
   TakePictureScreenState createState() => TakePictureScreenState();
@@ -18,7 +24,6 @@ class TakePictureScreen extends StatefulWidget {
 
 class TakePictureScreenState extends State<TakePictureScreen> {
   CameraController? _controller;
-  // late Future<void> _initializeControllerFuture;
   double result = 0;
   double total = 0;
   double zoom = 1;
@@ -28,6 +33,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
   bool showFocusCircle = false;
   double x = 0;
   double y = 0;
+  List excelData = [];
 
   void onNewCameraSelected(CameraDescription cameraDescription) async {
     final previousCameraController = _controller;
@@ -36,7 +42,6 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       cameraDescription,
       ResolutionPreset.high,
       enableAudio: false,
-      // imageFormatGroup: ImageFormatGroup.jpeg,
     );
 
     // Dispose the previous controller
@@ -90,7 +95,6 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       await _controller?.setFocusPoint(point);
 
       // Manually set light exposure
-      //controller.setExposurePoint(point);
 
       setState(() {
         Future.delayed(const Duration(seconds: 2)).whenComplete(() {
@@ -136,22 +140,45 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                 ),
               )
             : Container(),
-        Positioned(
-          top: MediaQuery.of(context).size.height * 0.01,
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: null,
-                  child: Text('Total: ${total.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 20, color: Colors.red)),
+        widget.dataType == Float
+            ? Positioned(
+                top: MediaQuery.of(context).size.height * 0.01,
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: null,
+                        child: Text('Total: ${total.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                fontSize: 20, color: Colors.red)),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-        ),
+              )
+            : Positioned(
+                top: MediaQuery.of(context).size.height * 0.01,
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          var sheetData = await Excel().getSheetData();
+                          setState(() {
+                            excelData = sheetData;
+                          });
+                        },
+                        child: const Text('Cargar Excel',
+                            style: TextStyle(fontSize: 20, color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
       ]),
       Positioned(
         bottom: MediaQuery.of(context).size.height * 0.2,
@@ -202,6 +229,8 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                       imagePath: image.path,
                       total: total,
                       foreignCurrency: widget.foreignCurrency,
+                      excelData: excelData,
+                      dataType: widget.dataType,
                     ),
                   ),
                 );
@@ -234,12 +263,16 @@ class DisplayPictureScreen extends StatefulWidget {
   final String imagePath;
   final double total;
   final bool foreignCurrency;
+  final List excelData;
+  final Type dataType;
 
   const DisplayPictureScreen(
       {super.key,
       required this.imagePath,
       required this.total,
-      required this.foreignCurrency});
+      required this.foreignCurrency,
+      this.excelData = const [],
+      required this.dataType});
 
   @override
   State<DisplayPictureScreen> createState() => DisplayPictureScreenState();
@@ -252,7 +285,7 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
   double sum = 0;
   List extractedNumbers = [];
   List extractedText = [];
-
+  Map<String, List> rfcCurp = {};
   void _calculateSum() {
     for (int i = 0; i < extractedNumbers.length; i++) {
       sum += double.parse(extractedNumbers[i][0].replaceAll(',', '')) *
@@ -278,24 +311,19 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
     var exp = RegExp(r',');
     if (exp.allMatches(filteredText).length > 1) {
       int lastCommaIndex = filteredText.lastIndexOf(exp);
-      // debugPrint("Last comma index: $lastCommaIndex");
-      // debugPrint("Length: ${filteredText.length}");
       if (filteredText.length - 1 - lastCommaIndex == 2) {
         filteredText =
             filteredText.replaceRange(lastCommaIndex, lastCommaIndex + 1, '.');
-        // debugPrint("Change comma for dot $filteredText");
       }
     }
     if (filteredText.contains(',') && filteredText.contains('.')) {
       // If it does, remove the comma
       filteredText = filteredText.replaceAll(',', '');
-      // debugPrint("Remove comma: $filteredText");
     }
     // Check if the line contains a comma
     else if (filteredText.contains(',')) {
       // If it does, replace it with a dot
       filteredText = filteredText.replaceAll(',', '.');
-      // debugPrint("Change comma for dot $filteredText");
     }
     return filteredText;
   }
@@ -310,18 +338,15 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
       if (filteredText.length - 1 - lastDotIndex == 2) {
         filteredText =
             filteredText.replaceRange(lastDotIndex, lastDotIndex + 1, ',');
-        // debugPrint("Change comma for dot $filteredText");
       }
     }
     if (filteredText.contains(',') && filteredText.contains('.')) {
       filteredText = filteredText.replaceAll('.', '');
-      // debugPrint("Remove comma: $filteredText");
     }
     // Check if the line contains a comma
     else if (filteredText.contains('.')) {
       // If it does, replace it with a dot
       filteredText = filteredText.replaceAll('.', ',');
-      // debugPrint("Change comma for dot $filteredText");
     }
     return filteredText;
   }
@@ -329,6 +354,10 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
   Future<void> extractText(imagePath) async {
     extractedText.clear();
     extractedNumbers.clear();
+    rfcCurp = {};
+
+    RegExp rfcRegex = RegExp(r'[A-Z]{4}\d{6}[A-Z0-9]{0,3}');
+    RegExp curpRegex = RegExp(r'[A-Z]{4}\d{6}[A-Z0-9]{8}');
 
     final inputImage = InputImage.fromFilePath(imagePath);
     final textDetector = TextRecognizer();
@@ -336,31 +365,50 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
         await textDetector.processImage(inputImage);
     for (TextBlock block in recognisedText.blocks) {
       for (TextLine line in block.lines) {
-        // recognizedText += '${line.text}\n';
         // Check if the line contains a comma and a dot
-        filteredText = line.text;
-        filteredText = filteredText.replaceAll(RegExp(r'[^.,\d]'), '');
-        if (filteredText.isEmpty || filteredText.contains('-')) {
-          continue;
+        if (widget.dataType == Float) {
+          filteredText = line.text;
+          filteredText = filteredText.replaceAll(RegExp(r'[^.,\d]'), '');
+          if (filteredText.isEmpty || filteredText.contains('-')) {
+            continue;
+          }
+
+          if (widget.foreignCurrency) {
+            filteredText = _extractForeignCurrency(filteredText);
+            if (double.tryParse(
+                    filteredText.replaceAll(RegExp('[^0-9,]'), '')) !=
+                null) {
+              extractedNumbers.add([filteredText, '-']);
+            }
+          } else {
+            filteredText = _extractNationalCurrency(filteredText);
+            if (double.tryParse(
+                    filteredText.replaceAll(RegExp('[^0-9.]'), '')) !=
+                null) {
+              extractedNumbers.add([filteredText, '-']);
+            }
+          }
         }
 
-        if (widget.foreignCurrency) {
-          filteredText = _extractForeignCurrency(filteredText);
-          if (double.tryParse(filteredText.replaceAll(RegExp('[^0-9,]'), '')) !=
-              null) {
-            extractedNumbers.add([filteredText, '-']);
-            // debugPrint("Total: $sum");
+        if (widget.dataType == String) {
+          debugPrint('Line: ${line.text}');
+          var row = line.text;
+          var existCurp = curpRegex.hasMatch(row);
+          var curp = curpRegex.stringMatch(row);
+          if (curp != null) {
+            row = row.replaceAll(RegExp(curp), '');
           }
-        } else {
-          filteredText = _extractNationalCurrency(filteredText);
-          if (double.tryParse(filteredText.replaceAll(RegExp('[^0-9.]'), '')) !=
-              null) {
-            extractedNumbers.add([filteredText, '-']);
-            // debugPrint("Total: $sum");
-          }
+          var existRfc = rfcRegex.hasMatch(row);
+          var rfc = rfcRegex.stringMatch(row);
+          rfcCurp = {
+            'CURP': [curp, existCurp],
+            'RFC': [rfc, existRfc]
+          };
         }
       }
     }
+
+    debugPrint('rfcCurp: $rfcCurp');
 
     setState(() {
       dialogOpen = true;
@@ -415,16 +463,19 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
           ]),
           if (dialogOpen)
             AlertDialog(
-              title: Column(
-                children: [
-                  const Center(child: Text('Cifras extraidas')),
-                  Center(
-                      child: Text(
-                    'Subtotal: ${sum.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 15, color: Colors.orange),
-                  ))
-                ],
-              ),
+              title: widget.dataType == Float
+                  ? Column(
+                      children: [
+                        const Center(child: Text('Cifras extraidas')),
+                        Center(
+                            child: Text(
+                          'Subtotal: ${sum.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                              fontSize: 15, color: Colors.orange),
+                        ))
+                      ],
+                    )
+                  : const Center(child: Text('Verificacion de datos')),
               content: Scrollbar(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(
@@ -432,48 +483,72 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
                   child: Column(
                     children: [
                       Center(
-                          child: Column(children: [
-                        for (int i = 0; i < extractedNumbers.length; i++)
-                          Row(children: [
-                            SizedBox(
-                              child: TextButton(
-                                child:
-                                    const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () {
-                                  setState(() {
-                                    extractedNumbers.removeAt(i);
-                                  });
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              height: 40,
-                              child: TextButton(
-                                  style: ButtonStyle(
-                                      padding: MaterialStateProperty.all(
-                                          const EdgeInsets.all(0))),
-                                  onPressed: () {
-                                    setState(() {
-                                      extractedNumbers[i][1] =
-                                          extractedNumbers[i][1] == '-'
-                                              ? '+'
-                                              : '-';
-                                    });
-                                  },
-                                  child: extractedNumbers[i][1] == '-'
-                                      ? const Icon(Icons.remove,
-                                          color: Colors.red)
-                                      : const Icon(Icons.add,
-                                          color: Colors.green)),
-                            ),
-                            Text(extractedNumbers[i][0])
-                          ])
-                      ])),
-                      // Center(
-                      //     child: Padding(
-                      //   padding: const EdgeInsets.only(top: 20),
-                      //   child: Text('Suma: ${sum.toStringAsFixed(2)}'),
-                      // ))
+                          child: widget.dataType == Float
+                              ? Column(children: [
+                                  for (int i = 0;
+                                      i < extractedNumbers.length;
+                                      i++)
+                                    Row(children: [
+                                      SizedBox(
+                                        child: TextButton(
+                                          child: const Icon(Icons.delete,
+                                              color: Colors.red),
+                                          onPressed: () {
+                                            setState(() {
+                                              extractedNumbers.removeAt(i);
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        height: 40,
+                                        child: TextButton(
+                                            style: ButtonStyle(
+                                                padding:
+                                                    MaterialStateProperty.all(
+                                                        const EdgeInsets.all(
+                                                            0))),
+                                            onPressed: () {
+                                              setState(() {
+                                                extractedNumbers[i][1] =
+                                                    extractedNumbers[i][1] ==
+                                                            '-'
+                                                        ? '+'
+                                                        : '-';
+                                              });
+                                            },
+                                            child: extractedNumbers[i][1] == '-'
+                                                ? const Icon(Icons.remove,
+                                                    color: Colors.red)
+                                                : const Icon(Icons.add,
+                                                    color: Colors.green)),
+                                      ),
+                                      Text(extractedNumbers[i][0])
+                                    ])
+                                ])
+                              : Column(children: [
+                                  for (var key in rfcCurp.keys)
+                                    Row(children: [
+                                      Text('$key: '),
+                                      Text(rfcCurp[key]![0] ??
+                                          'No encontrado en la imagen'),
+                                      Text(rfcCurp[key]![1] ? ' ✅' : ' ❌')
+                                    ]),
+                                  for (int i = 0;
+                                      i < widget.excelData.length;
+                                      i++)
+                                    if (rfcCurp['CURP']![1] ==
+                                            widget.excelData[i].contains(
+                                                rfcCurp['CURP']![0]) &&
+                                        rfcCurp['RFC']![1] ==
+                                            widget.excelData[i]
+                                                .contains(rfcCurp['RFC']![0]) &&
+                                        rfcCurp['CURP']?[0] != null &&
+                                        rfcCurp['RFC']?[0] != null)
+                                      const Row(children: [
+                                        Text('Correcto en Excel: ✅'),
+                                      ])
+                                ]))
                     ],
                   ),
                 ),

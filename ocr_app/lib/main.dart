@@ -1,4 +1,4 @@
-// import 'dart:ffi';
+import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'view_pdf.dart';
 import 'camera.dart';
@@ -55,6 +55,9 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool foreignCurrency = false;
+  int tabIndex = 1;
+  Type type = Float;
+  bool isNumeric = true;
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +66,6 @@ class _MyHomePageState extends State<MyHomePage> {
       length: 3,
       child: Scaffold(
         extendBody: true,
-        // backgroundColor: const Color.fromRGBO(241, 201, 59, 1),
         appBar: AppBar(
             centerTitle: true,
             title: Text('Ez SP',
@@ -72,27 +74,104 @@ class _MyHomePageState extends State<MyHomePage> {
                     fontWeight: FontWeight.w600,
                     color: Colors.blue.shade300)),
             // backgroundColor: const Color.fromRGBO(26, 93, 26, 1),
+            leading: tabIndex != 0
+                ? null
+                : PopupMenuButton(
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 1,
+                        child: TextButton(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(SnackBar(
+                                content: const Center(
+                                    child: Text('Extraer datos numericos')),
+                                backgroundColor: Colors.blue.shade300,
+                              ));
+                              setState(() {
+                                type = Float;
+                                isNumeric = true;
+                              });
+                            },
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                    value: isNumeric,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        isNumeric = isNumeric;
+                                      });
+                                    }),
+                                const Text("Datos Numericos"),
+                              ],
+                            )),
+                      ),
+                      PopupMenuItem(
+                        value: 2,
+                        child: TextButton(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(SnackBar(
+                                content: const Center(
+                                    child: Text('Extraer datos de texto')),
+                                backgroundColor: Colors.blue.shade300,
+                              ));
+                              setState(() {
+                                type = String;
+                                isNumeric = false;
+                              });
+                            },
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: !isNumeric,
+                                  onChanged: null,
+                                ),
+                                const Text("Datos de Texto"),
+                              ],
+                            )),
+                      )
+                    ],
+                    onSelected: (value) {
+                      debugPrint("You selected $value");
+                    },
+                    icon: const Icon(Icons.more_vert),
+                  ),
             actions: [
-              IconButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: foreignCurrency
-                          ? const Center(child: Text('Moneda Nacional'))
-                          : const Center(child: Text('Moneda Extranjera')),
-                      backgroundColor: Colors.blue.shade300,
-                    ));
-                    setState(() {
-                      foreignCurrency = !foreignCurrency;
-                    });
-                    debugPrint(foreignCurrency.toString());
-                  },
-                  icon: Icon(Icons.monetization_on_outlined,
-                      color: foreignCurrency
-                          ? const Color.fromRGBO(0, 255, 0, 1)
-                          : const Color.fromRGBO(255, 0, 0, 1)))
+              type == Float
+                  ? IconButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: foreignCurrency
+                              ? const Center(child: Text('Moneda Nacional'))
+                              : const Center(child: Text('Moneda Extranjera')),
+                          backgroundColor: Colors.blue.shade300,
+                        ));
+                        setState(() {
+                          foreignCurrency = !foreignCurrency;
+                        });
+                        debugPrint(foreignCurrency.toString());
+                      },
+                      icon: Icon(Icons.monetization_on_outlined,
+                          color: foreignCurrency
+                              ? const Color.fromRGBO(0, 255, 0, 1)
+                              : const Color.fromRGBO(255, 0, 0, 1)))
+                  : Container(),
             ],
-            bottom: const TabBar(
-              tabs: <Widget>[
+            bottom: TabBar(
+              onTap: (value) {
+                if (type == String && value != 0) {
+                  type = Float;
+                  isNumeric = true;
+                }
+
+                setState(() {
+                  tabIndex = value;
+                  type = type;
+                  isNumeric = isNumeric;
+                });
+              },
+              tabs: const <Widget>[
                 Tab(
                   icon: Icon(Icons.camera_alt),
                   text: 'Camara',
@@ -111,7 +190,10 @@ class _MyHomePageState extends State<MyHomePage> {
           physics: const NeverScrollableScrollPhysics(),
           children: [
             TakePictureScreen(
-                camera: widget.camera, foreignCurrency: foreignCurrency),
+              camera: widget.camera,
+              foreignCurrency: foreignCurrency,
+              dataType: type,
+            ),
             ImageExtractor(foreignCurrency: foreignCurrency),
             PdfBoxSelector(foreignCurrency: foreignCurrency)
           ],

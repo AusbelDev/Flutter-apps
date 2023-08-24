@@ -26,9 +26,6 @@ class _ImageExtractorState extends State<ImageExtractor> {
   List<List<String>> result = [];
   final ScrollController _scrollController = ScrollController();
 
-  // var maskFormatterThousands = MaskTextInputFormatter(
-  //     mask: '###,###.##', filter: {"#": RegExp(r'[0-9]')});
-
   Future<void> _pickImages() async {
     final imagePicker = ImagePicker();
     maxTotal = 0;
@@ -56,24 +53,20 @@ class _ImageExtractorState extends State<ImageExtractor> {
     var exp = RegExp(r',');
     if (exp.allMatches(filteredText).length > 1) {
       int lastCommaIndex = filteredText.lastIndexOf(exp);
-      // debugPrint("Last comma index: $lastCommaIndex");
-      // debugPrint("Length: ${filteredText.length}");
+
       if (filteredText.length - 1 - lastCommaIndex == 2) {
         filteredText =
             filteredText.replaceRange(lastCommaIndex, lastCommaIndex + 1, '.');
-        // debugPrint("Change comma for dot $filteredText");
       }
     }
     if (filteredText.contains(',') && filteredText.contains('.')) {
       // If it does, remove the comma
       filteredText = filteredText.replaceAll(',', '');
-      // debugPrint("Remove comma: $filteredText");
     }
     // Check if the line contains a comma
     else if (filteredText.contains(',')) {
       // If it does, replace it with a dot
       filteredText = filteredText.replaceAll(',', '.');
-      // debugPrint("Change comma for dot $filteredText");
     }
     return filteredText;
   }
@@ -83,23 +76,18 @@ class _ImageExtractorState extends State<ImageExtractor> {
     var exp = RegExp(r'\.');
     if (exp.allMatches(filteredText).length > 1) {
       int lastDotIndex = filteredText.lastIndexOf(exp);
-      // debugPrint("Last comma index: $lastCommaIndex");
-      // debugPrint("Length: ${filteredText.length}");
       if (filteredText.length - 1 - lastDotIndex == 2) {
         filteredText =
             filteredText.replaceRange(lastDotIndex, lastDotIndex + 1, ',');
-        // debugPrint("Change comma for dot $filteredText");
       }
     }
     if (filteredText.contains(',') && filteredText.contains('.')) {
       filteredText = filteredText.replaceAll('.', '');
-      // debugPrint("Remove comma: $filteredText");
     }
     // Check if the line contains a comma
     else if (filteredText.contains('.')) {
       // If it does, replace it with a dot
       filteredText = filteredText.replaceAll('.', ',');
-      // debugPrint("Change comma for dot $filteredText");
     }
     return filteredText;
   }
@@ -117,9 +105,7 @@ class _ImageExtractorState extends State<ImageExtractor> {
       final RecognizedText recognisedText =
           await textDetector.processImage(inputImage);
 
-      // String recognizedText = '';
       double total = 0;
-      // debugPrint(discount.toString());
       for (TextBlock block in recognisedText.blocks) {
         for (TextLine line in block.lines) {
           // Check if the line contains a comma and a dot
@@ -137,7 +123,6 @@ class _ImageExtractorState extends State<ImageExtractor> {
               pageText.add([filteredText, '-']);
               total +=
                   double.parse(filteredText.replaceAll(RegExp('[^0-9,]'), ''));
-              // debugPrint("Total: $total");
             }
           } else {
             filteredText = _extractNationalCurrency(filteredText);
@@ -147,7 +132,6 @@ class _ImageExtractorState extends State<ImageExtractor> {
               pageText.add([filteredText, '-']);
               total +=
                   double.parse(filteredText.replaceAll(RegExp('r[^0-9.]'), ''));
-              // debugPrint("Total: $total");
             }
           }
         }
@@ -247,7 +231,6 @@ class _ImageExtractorState extends State<ImageExtractor> {
                 SizedBox(
                   width: MediaQuery.of(context).size.width * 0.8,
                   child: FloatingActionButton(
-                    // backgroundColor: const Color.fromRGBO(26, 93, 26, 1),
                     onPressed: _pickImages,
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,

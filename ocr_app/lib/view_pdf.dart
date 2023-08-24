@@ -1,11 +1,8 @@
 import 'dart:io';
-
-// import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:file_picker/file_picker.dart';
-// import 'package:path_provider/path_provider.dart';
 
 class PdfBoxSelector extends StatefulWidget {
   const PdfBoxSelector({super.key, required this.foreignCurrency});
@@ -84,14 +81,9 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     pdfOffsetY = _pdfViewerController.scrollOffset.dy;
     viewOffset = containerWidth * (_pdfViewerController.pageNumber - 1) -
         4 * (_pdfViewerController.pageNumber - 1);
-    //debugPrint('viewOffset: $viewOffset');
-    //debugPrint('pdfPageWidth: $pdfPageWidth, pdfPageHeight: $pdfPageHeight');
-    //debugPrint('pdfOffsetX: $pdfOffsetX, pdfOffsetY: $pdfOffsetY');
-    //debugPrint(
-    // 'containerWidth: $containerWidth, containerHeight: $containerHeight');
+
     // Get the current zoom level of the PDF viewer
     double zoomLevel = _pdfViewerController.zoomLevel;
-    //debugPrint('zoomLevel: $zoomLevel');
     // Convert box coordinates to pdf coordinates
     double pdfRatio = pdfPageWidth / pdfPageHeight;
     scaledContainerHeight = containerWidth / pdfRatio;
@@ -132,7 +124,6 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
   }
 
   String _extractNumbers(String text, bool foreignCurrency) {
-    //debugPrint('Text: $text');
     var number = '';
     if (!foreignCurrency) {
       RegExp regExp = RegExp(r'\d*,\d*,?\d+\.\d+');
@@ -150,8 +141,6 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
           double.parse('${extractedNumbers[i][1].toString()}1') *
           -1;
     }
-
-    //debugPrint('Sum: $sum');
 
     setState(() {
       sum = sum;
@@ -212,29 +201,15 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
         }
       }
     }
-    //debugPrint('currentPage: $currentPage');
-    // document.pages[currentPage - 1].annotations.add(PdfRectangleAnnotation(
-    //     textBounds, 'Rectangle',
-    //     color: PdfColor(255, 0, 0), setAppearance: true));
-
-//Save the document.
-    // final directory = await getApplicationDocumentsDirectory();
-
-    // final localPath = directory.path;
-    // final path = localPath;
-
-    // File('$path/annotations.pdf').writeAsBytes(await document.save());
 
     document.dispose();
 
     for (int i = 0; i < extractedText.length; i++) {
-      //debugPrint('extractedText: ${extractedText[i]}');
       if (extractedText[i] != '') {
         extractedNumbers.add([extractedText[i], '-']);
       }
     }
 
-    // _showDialog(extractedNumbers.join('\n'));
     setState(() {
       dialog = true;
       pagesTotals.add([currentPage, 0]);
@@ -268,7 +243,6 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                       },
                     ),
                   )),
-          // SfPdfViewer.file(File(pdfFile))))),
           Positioned(
             bottom: MediaQuery.of(context).size.height * 0.05,
             right: MediaQuery.of(context).size.width * 0.05,
@@ -375,11 +349,6 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                             Text(extractedNumbers[i][0])
                           ])
                       ])),
-                      // Center(
-                      //     child: Padding(
-                      //   padding: const EdgeInsets.only(top: 20),
-                      //   child: Text('Suma: ${sum.toStringAsFixed(2)}'),
-                      // ))
                     ],
                   ),
                 ),
