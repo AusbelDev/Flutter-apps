@@ -52,6 +52,19 @@ dependencies:
   excel: ^2.1.0
   loading_animation_widget: ^1.2.0+4
   intl: ^0.18.1
+  flutter_native_splash: ^2.3.2
+  flutter_launcher_icons: ^0.13.1
+
+flutter_native_splash:
+  color: "#000000"
+  android_12:
+    image: assets/ezSP_2_res.png
+
+flutter_launcher_icons:
+  android: true
+
+  image_path: "assets/icon.png"
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
