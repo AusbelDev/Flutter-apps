@@ -51,6 +51,7 @@ dependencies:
   hidable: ^1.0.4
   excel: ^2.1.0
   loading_animation_widget: ^1.2.0+4
+  intl: ^0.18.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

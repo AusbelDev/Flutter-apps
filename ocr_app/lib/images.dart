@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:hidable/hidable.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:intl/intl.dart';
 
 class ImageExtractor extends StatefulWidget {
   const ImageExtractor({super.key, required this.foreignCurrency});
@@ -198,7 +199,9 @@ class _ImageExtractorState extends State<ImageExtractor> {
                                         color: Colors.white,
                                       )
                                     : Text(
-                                        _recognizedTexts[index],
+                                        widget.foreignCurrency
+                                            ? '\$${NumberFormat("###,###,##0.00", "EU").format(double.parse(_recognizedTexts[index].substring(11)))}'
+                                            : '\$${NumberFormat("###,###,##0.00", "en_US").format(double.parse(_recognizedTexts[index].substring(11)))}',
                                         style: const TextStyle(
                                             fontSize: 20, color: Colors.white),
                                       ),
@@ -209,8 +212,11 @@ class _ImageExtractorState extends State<ImageExtractor> {
                               result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) =>
-                                          ImagePage(pagesText[index])));
+                                      builder: (context) => ImagePage(
+                                            pagesText[index],
+                                            foreignCurrency:
+                                                widget.foreignCurrency,
+                                          )));
 
                               List<String> newPageTotal = _makeNewSum(result);
 
@@ -283,7 +289,7 @@ class _ImageExtractorState extends State<ImageExtractor> {
                       width: MediaQuery.of(context).size.width * 0.8,
                       child: Center(
                         child: Text(
-                          'Total: \$${maxTotal.toStringAsFixed(2)}',
+                          'Total: \$${NumberFormat("###,###,##0.00", widget.foreignCurrency ? "EU" : "en_US").format(maxTotal)}',
                           style: const TextStyle(
                             fontSize: 20,
                             backgroundColor: Colors.transparent,
@@ -312,7 +318,8 @@ class _ImageExtractorState extends State<ImageExtractor> {
 
 class ImagePage extends StatefulWidget {
   final List<List> pageText;
-  const ImagePage(this.pageText, {super.key});
+  final bool foreignCurrency;
+  const ImagePage(this.pageText, {super.key, required this.foreignCurrency});
 
   @override
   State<ImagePage> createState() => _ImagePageState();
@@ -371,7 +378,10 @@ class _ImagePageState extends State<ImagePage> {
                 ),
                 SizedBox(
                     width: MediaQuery.of(context).size.width * 0.25,
-                    child: Center(child: Text('${pageTextDetail[index][0]}'))),
+                    child: Center(
+                        child: Text(NumberFormat("###,###,##0.00",
+                                widget.foreignCurrency ? "EU" : "en_US")
+                            .format(double.parse(pageTextDetail[index][0]))))),
               ],
             );
           },

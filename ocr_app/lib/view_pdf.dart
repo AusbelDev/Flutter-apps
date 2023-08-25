@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
 
 class PdfBoxSelector extends StatefulWidget {
   const PdfBoxSelector({super.key, required this.foreignCurrency});
@@ -40,16 +41,22 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
   bool dialog = false;
   double viewOffset = 0;
   List pagesTotals = [];
+  double docTotal = 0;
+  PdfDocument document = PdfDocument();
+  List copyExtractedNumbers = [];
 
   void selectPdfFile() async {
+    document.dispose();
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
     if (result != null) {
       pdfFile = result.files.single.path!;
+      document = PdfDocument(inputBytes: await _readDocumentData(pdfFile));
       setState(() {
         pdfFile = pdfFile;
+        document = document;
       });
     }
   }
@@ -135,7 +142,19 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     return number;
   }
 
-  void _calculateSum() {
+  void _calculateTotalSum() {
+    docTotal = 0;
+    for (int i = 0; i < pagesTotals.length; i++) {
+      docTotal += pagesTotals[i][1];
+    }
+
+    setState(() {
+      docTotal = docTotal;
+    });
+  }
+
+  void _calculateSubTotal() {
+    sum = 0;
     for (int i = 0; i < extractedNumbers.length; i++) {
       sum += double.parse(extractedNumbers[i][0].replaceAll(',', '')) *
           double.parse('${extractedNumbers[i][1].toString()}1') *
@@ -149,16 +168,21 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
   }
 
   void _resetSum() {
+    extractedNumbers = List.of(copyExtractedNumbers);
+    _calculateTotalSum();
     setState(() {
-      sum = 0;
+      pagesTotals[pagesTotals.length - 1][1] = 0.0;
     });
+    debugPrint('Copy: $copyExtractedNumbers');
   }
 
   Future<List<int>> _readDocumentData(String name) async {
     sum = 0;
-    extractedNumbers.clear();
-    extractedText.clear();
-    pagesTotals.clear();
+    docTotal = 0;
+    extractedNumbers = [];
+    copyExtractedNumbers = [];
+    extractedText = [];
+    pagesTotals = [];
 
     final file = File(name);
     // final ByteData data = await rootBundle.load(name);
@@ -169,12 +193,13 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
 
   Future<void> _textExtraction() async {
     extractedText.clear();
-    extractedNumbers.clear();
+    extractedNumbers = [];
+    copyExtractedNumbers = [];
     var currentPage = _pdfViewerController.pageNumber;
     isDragging = false;
     //Load the PDF document.
-    final PdfDocument document =
-        PdfDocument(inputBytes: await _readDocumentData(pdfFile));
+    // final PdfDocument document =
+    //     PdfDocument(inputBytes: await _readDocumentData(pdfFile));
 
     pdfPageHeight = document.pages[currentPage - 1].size.height;
     pdfPageWidth = document.pages[currentPage - 1].size.width;
@@ -188,7 +213,6 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
 
     Rect textBounds = Rect.fromLTWH(
         (boxStartX), (boxStartY), (boxEndX - boxStartX), (boxEndY - boxStartY));
-    //debugPrint('textBounds: $textBounds');
 
     //Save and launch the file.
     for (int i = 0; i < result.length; i++) {
@@ -202,17 +226,22 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
       }
     }
 
-    document.dispose();
+    // document.dispose();
 
     for (int i = 0; i < extractedText.length; i++) {
       if (extractedText[i] != '') {
         extractedNumbers.add([extractedText[i], '-']);
+        copyExtractedNumbers.add([extractedText[i], '-']);
       }
     }
 
+    pagesTotals.add([currentPage, 0.0]);
+    _calculateSubTotal();
+    copyExtractedNumbers = List.unmodifiable(copyExtractedNumbers);
     setState(() {
       dialog = true;
-      pagesTotals.add([currentPage, 0]);
+      pagesTotals = pagesTotals;
+      // copyExtractedNumbers = extractedNumbers;
     });
   }
 
@@ -300,9 +329,14 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                   const Center(child: Text('Cifras extraidas')),
                   Center(
                       child: Text(
-                    'Total: ${sum.toStringAsFixed(2)}',
+                    'Total: ${NumberFormat("###,###,##0.00", widget.foreignCurrency ? "EU" : "en_US").format(docTotal)}',
                     style: const TextStyle(fontSize: 15, color: Colors.green),
                   )),
+                  Center(
+                      child: Text(
+                    'SubTotal: ${NumberFormat("###,###,##0.00", widget.foreignCurrency ? "EU" : "en_US").format(sum)}',
+                    style: const TextStyle(fontSize: 15, color: Colors.orange),
+                  ))
                 ],
               ),
               content: Scrollbar(
@@ -317,12 +351,12 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                           Row(children: [
                             SizedBox(
                               child: TextButton(
-                                child:
-                                    const Icon(Icons.delete, color: Colors.red),
+                                child: const Icon(Icons.delete),
                                 onPressed: () {
                                   setState(() {
                                     extractedNumbers.removeAt(i);
                                   });
+                                  _calculateSubTotal();
                                 },
                               ),
                             ),
@@ -338,7 +372,9 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                                           extractedNumbers[i][1] == '-'
                                               ? '+'
                                               : '-';
+                                      extractedNumbers = extractedNumbers;
                                     });
+                                    _calculateSubTotal();
                                   },
                                   child: extractedNumbers[i][1] == '-'
                                       ? const Icon(Icons.remove,
@@ -365,7 +401,9 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                       const Text('Cerrar', style: TextStyle(color: Colors.red)),
                 ),
                 TextButton(onPressed: _resetSum, child: const Text('Reset')),
-                TextButton(onPressed: _calculateSum, child: const Text('Sumar'))
+                TextButton(
+                    onPressed: _calculateTotalSum,
+                    child: const Text('Sumar al total'))
               ],
             )
         ],
