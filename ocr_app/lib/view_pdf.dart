@@ -94,6 +94,8 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     // Convert box coordinates to pdf coordinates
     double pdfRatio = pdfPageWidth / pdfPageHeight;
     scaledContainerHeight = containerWidth / pdfRatio;
+    debugPrint('pdf Height: $pdfPageHeight');
+    debugPrint('pdf Width: $pdfPageWidth');
 
     double pdfStartX = (_startX * pdfPageWidth / containerWidth);
     double pdfStartY =
@@ -121,6 +123,16 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
           (_endY) * (pdfPageHeight / scaledContainerHeight) / zoomLevel;
     }
 
+    debugPrint('pdf StartX: $pdfStartX');
+    debugPrint('pdf StartY: $pdfStartY');
+    debugPrint('pdf EndX: $pdfEndX');
+    debugPrint('pdf EndY: $pdfEndY');
+    debugPrint('EndX - StartX: ${pdfEndX - pdfStartX}');
+    debugPrint('EndY - StartY: ${pdfEndY - pdfStartY}');
+    debugPrint('pdf OffsetX: $pdfOffsetX');
+    debugPrint('pdf OffsetY: $pdfOffsetY');
+    debugPrint('pdf ZoomLevel: $zoomLevel');
+
     // Set the box coordinates
     setState(() {
       boxStartX = pdfStartX;
@@ -133,10 +145,10 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
   String _extractNumbers(String text, bool foreignCurrency) {
     var number = '';
     if (!foreignCurrency) {
-      RegExp regExp = RegExp(r'\d*,\d*,?\d+\.\d+');
+      RegExp regExp = RegExp(r'\d*,?\d*,?\d+\.\d+');
       number = regExp.stringMatch(text) ?? '';
     } else if (foreignCurrency) {
-      RegExp regExp = RegExp(r'\d*\.\d*\.?\d+,\d+');
+      RegExp regExp = RegExp(r'\d*\.?\d*\.?\d+,\d+');
       number = regExp.stringMatch(text) ?? '';
     }
     return number;
@@ -214,7 +226,6 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     Rect textBounds = Rect.fromLTWH(
         (boxStartX), (boxStartY), (boxEndX - boxStartX), (boxEndY - boxStartY));
 
-    //Save and launch the file.
     for (int i = 0; i < result.length; i++) {
       List<TextWord> wordCollection = result[i].wordCollection;
       for (int j = 0; j < wordCollection.length; j++) {
@@ -226,6 +237,7 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
       }
     }
 
+    debugPrint('Extracted Text: $extractedText');
     // document.dispose();
 
     for (int i = 0; i < extractedText.length; i++) {
