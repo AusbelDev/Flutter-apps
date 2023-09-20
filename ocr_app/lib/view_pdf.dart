@@ -40,10 +40,10 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
   double sum = 0;
   bool dialog = false;
   double viewOffset = 0;
-  List pagesTotals = [];
   double docTotal = 0;
   PdfDocument document = PdfDocument();
   List copyExtractedNumbers = [];
+  Map pagesTotals = {};
 
   void selectPdfFile() async {
     document.dispose();
@@ -54,6 +54,10 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     if (result != null) {
       pdfFile = result.files.single.path!;
       document = PdfDocument(inputBytes: await _readDocumentData(pdfFile));
+      for (int i = 0; i < document.pages.count; i++) {
+        var entry = <int, List>{i: []};
+        pagesTotals.addEntries(entry.entries);
+      }
       setState(() {
         pdfFile = pdfFile;
         document = document;
@@ -109,18 +113,16 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
 
     if (zoomLevel != 1.0) {
       pdfStartX = pdfOffsetX * (pdfPageWidth / containerWidth) +
-          (_startX * (pdfPageWidth / containerWidth) / zoomLevel) -
-          viewOffset * (pdfPageWidth / containerWidth);
+          (_startX * (pdfPageWidth / containerWidth) / zoomLevel);
 
-      pdfStartY = pdfOffsetY * (pdfPageHeight / scaledContainerHeight) +
-          (_startY) * (pdfPageHeight / scaledContainerHeight) / zoomLevel;
+      pdfStartY = pdfOffsetY +
+          (_startY) * (pdfPageHeight / containerHeight) / zoomLevel;
 
       pdfEndX = pdfOffsetX * (pdfPageWidth / containerWidth) +
-          (_endX * (pdfPageWidth / containerWidth) / zoomLevel) -
-          viewOffset * (pdfPageWidth / containerWidth);
+          (_endX * (pdfPageWidth / containerWidth) / zoomLevel);
 
-      pdfEndY = pdfOffsetY * (pdfPageHeight / scaledContainerHeight) +
-          (_endY) * (pdfPageHeight / scaledContainerHeight) / zoomLevel;
+      pdfEndY =
+          pdfOffsetY + (_endY) * (pdfPageHeight / containerHeight) / zoomLevel;
     }
 
     debugPrint('pdf StartX: $pdfStartX');
@@ -156,12 +158,26 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
 
   void _calculateTotalSum() {
     docTotal = 0;
-    for (int i = 0; i < pagesTotals.length; i++) {
-      docTotal += pagesTotals[i][1];
+
+    if (pagesTotals[_pdfViewerController.pageNumber - 1].isEmpty == true) {
+      pagesTotals[_pdfViewerController.pageNumber - 1] = [sum];
+    }
+
+    if (!pagesTotals[_pdfViewerController.pageNumber - 1].contains(sum) &&
+        pagesTotals[_pdfViewerController.pageNumber - 1].isNotEmpty == true) {
+      pagesTotals[_pdfViewerController.pageNumber - 1].add(sum);
+    }
+    debugPrint('pagesTotals values: ${pagesTotals.values}');
+
+    for (var e in pagesTotals.values) {
+      if (e.isNotEmpty == true) {
+        docTotal += e.fold(0, (a, b) => a + b);
+      }
     }
 
     setState(() {
       docTotal = docTotal;
+      pagesTotals = pagesTotals;
     });
   }
 
@@ -175,7 +191,9 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
 
     setState(() {
       sum = sum;
-      pagesTotals[pagesTotals.length - 1][1] = sum;
+
+      // pagesTotals[pagesTotals.length - 1][1] = sum;
+      // pagesTotals.add([_pdfViewerController.pageNumber - 1, sum]);
     });
   }
 
@@ -183,9 +201,10 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     extractedNumbers = List.of(copyExtractedNumbers);
     _calculateTotalSum();
     setState(() {
-      pagesTotals[pagesTotals.length - 1][1] = 0.0;
+      // pagesTotals[pagesTotals.length - 1][1] = 0.0;
+      // pagesTotals.add([_pdfViewerController.pageNumber - 1, 0.0]);
     });
-    debugPrint('Copy: $copyExtractedNumbers');
+    // debugPrint('Copy: $copyExtractedNumbers');
   }
 
   Future<List<int>> _readDocumentData(String name) async {
@@ -194,7 +213,7 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     extractedNumbers = [];
     copyExtractedNumbers = [];
     extractedText = [];
-    pagesTotals = [];
+    pagesTotals = {};
 
     final file = File(name);
     // final ByteData data = await rootBundle.load(name);
@@ -247,9 +266,10 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
       }
     }
 
-    pagesTotals.add([currentPage, 0.0]);
+    // pagesTotals.add([currentPage, 0.0]);
     _calculateSubTotal();
     copyExtractedNumbers = List.unmodifiable(copyExtractedNumbers);
+    debugPrint('Pages Totals: $pagesTotals');
     setState(() {
       dialog = true;
       pagesTotals = pagesTotals;
@@ -264,26 +284,26 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
         children: <Widget>[
           pdfFile == ''
               ? const Center(child: Text('No hay archivo seleccionado'))
-              : GestureDetector(
-                  onPanStart: isDragging ? _handlePanStart : (details) => {},
-                  onPanUpdate: isDragging ? _handlePanUpdate : (details) => {},
-                  onPanEnd: isDragging ? _handlePanEnd : (details) => {},
-                  child: SizedBox(
-                    child: LayoutBuilder(
-                      builder: (BuildContext context, BoxConstraints box) {
-                        containerWidth = box.maxWidth;
-                        containerHeight = box.maxHeight;
+              : SizedBox(
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints box) {
+                      containerWidth = box.maxWidth;
+                      containerHeight = box.maxHeight;
 
-                        return SfPdfViewer.file(
+                      return GestureDetector(
+                        onPanStart: isDragging ? _handlePanStart : null,
+                        onPanUpdate: isDragging ? _handlePanUpdate : null,
+                        onPanEnd: isDragging ? _handlePanEnd : null,
+                        child: SfPdfViewer.file(
                           File(pdfFile),
                           controller: _pdfViewerController,
-                          pageLayoutMode: PdfPageLayoutMode.continuous,
+                          pageLayoutMode: PdfPageLayoutMode.single,
                           scrollDirection: PdfScrollDirection.horizontal,
-                          onPageChanged: (details) {},
-                        );
-                      },
-                    ),
-                  )),
+                        ),
+                      );
+                    },
+                  ),
+                ),
           Positioned(
             bottom: MediaQuery.of(context).size.height * 0.05,
             right: MediaQuery.of(context).size.width * 0.05,
