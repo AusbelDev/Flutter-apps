@@ -110,23 +110,29 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     double pdfEndY = ((_endY - (containerHeight - scaledContainerHeight) / 2) *
         pdfPageHeight /
         scaledContainerHeight);
-
     if (zoomLevel != 1.0) {
+      // TODO! Fix this
       pdfStartX = pdfOffsetX * (pdfPageWidth / containerWidth) +
           (_startX * (pdfPageWidth / containerWidth) / zoomLevel);
 
-      pdfStartY = pdfOffsetY +
-          (_startY) * (pdfPageHeight / containerHeight) / zoomLevel;
+      pdfStartY = pdfOffsetY * (pdfPageHeight / scaledContainerHeight) +
+          ((_startY - (containerHeight - scaledContainerHeight)) *
+              (pdfPageHeight / scaledContainerHeight) /
+              zoomLevel);
 
       pdfEndX = pdfOffsetX * (pdfPageWidth / containerWidth) +
           (_endX * (pdfPageWidth / containerWidth) / zoomLevel);
 
-      pdfEndY =
-          pdfOffsetY + (_endY) * (pdfPageHeight / containerHeight) / zoomLevel;
+      pdfEndY = pdfOffsetY * (pdfPageHeight / scaledContainerHeight) +
+          ((_endY - (containerHeight - scaledContainerHeight)) *
+              (pdfPageHeight / scaledContainerHeight) /
+              zoomLevel);
     }
-
+    debugPrint('container Height: $containerHeight');
+    debugPrint('container Width: $containerWidth');
     debugPrint('pdf StartX: $pdfStartX');
     debugPrint('pdf StartY: $pdfStartY');
+    debugPrint('_startY: $_startY');
     debugPrint('pdf EndX: $pdfEndX');
     debugPrint('pdf EndY: $pdfEndY');
     debugPrint('EndX - StartX: ${pdfEndX - pdfStartX}');
@@ -245,6 +251,8 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
     Rect textBounds = Rect.fromLTWH(
         (boxStartX), (boxStartY), (boxEndX - boxStartX), (boxEndY - boxStartY));
 
+    debugPrint('Text Bounds: $textBounds');
+
     for (int i = 0; i < result.length; i++) {
       List<TextWord> wordCollection = result[i].wordCollection;
       for (int j = 0; j < wordCollection.length; j++) {
@@ -294,11 +302,14 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
                         onPanStart: isDragging ? _handlePanStart : null,
                         onPanUpdate: isDragging ? _handlePanUpdate : null,
                         onPanEnd: isDragging ? _handlePanEnd : null,
-                        child: SfPdfViewer.file(
-                          File(pdfFile),
-                          controller: _pdfViewerController,
-                          pageLayoutMode: PdfPageLayoutMode.single,
-                          scrollDirection: PdfScrollDirection.horizontal,
+                        child: AbsorbPointer(
+                          absorbing: isDragging,
+                          child: SfPdfViewer.file(
+                            File(pdfFile),
+                            controller: _pdfViewerController,
+                            pageLayoutMode: PdfPageLayoutMode.single,
+                            scrollDirection: PdfScrollDirection.horizontal,
+                          ),
                         ),
                       );
                     },
