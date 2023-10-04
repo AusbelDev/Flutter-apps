@@ -88,6 +88,9 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       double xp = x / fullWidth;
       double yp = y / cameraHeight;
 
+      // disable auto flash
+      await _controller?.setFlashMode(FlashMode.off);
+
       Offset point = Offset(xp, yp);
       debugPrint("point : $point");
 
@@ -103,6 +106,16 @@ class TakePictureScreenState extends State<TakePictureScreen> {
           });
         });
       });
+    }
+  }
+
+  Future<void> toggleFlashlight() async {
+    if (_controller!.value.isInitialized) {
+      if (_controller!.value.flashMode == FlashMode.off) {
+        await _controller?.setFlashMode(FlashMode.torch);
+      } else {
+        await _controller?.setFlashMode(FlashMode.off);
+      }
     }
   }
 
@@ -198,6 +211,12 @@ class TakePictureScreenState extends State<TakePictureScreen> {
           ),
         ),
       ),
+      Positioned(
+          bottom: MediaQuery.of(context).size.height * 0.25,
+          child: IconButton(
+            icon: const Icon(Icons.flash_on, color: Colors.white),
+            onPressed: toggleFlashlight,
+          )),
       Positioned(
         bottom: MediaQuery.of(context).size.height * 0.1,
         child: SizedBox(

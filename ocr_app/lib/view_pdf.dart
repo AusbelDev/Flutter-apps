@@ -111,7 +111,6 @@ class _PdfBoxSelectorState extends State<PdfBoxSelector> {
         pdfPageHeight /
         scaledContainerHeight);
     if (zoomLevel != 1.0) {
-      // TODO! Fix this
       pdfStartX = pdfOffsetX * (pdfPageWidth / containerWidth) +
           (_startX * (pdfPageWidth / containerWidth) / zoomLevel);
 
