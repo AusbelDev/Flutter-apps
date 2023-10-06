@@ -1,10 +1,14 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:path_provider/path_provider.dart';
 import 'excel.dart';
+import 'package:crop_image/crop_image.dart';
 
 // A screen that allows users to take a picture using a given camera.
 class TakePictureScreen extends StatefulWidget {
@@ -302,6 +306,9 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
   List extractedNumbers = [];
   List extractedText = [];
   Map<String, List> rfcCurp = {};
+  String imagePath = '';
+  bool cropped = false;
+
   void _calculateSum() {
     for (int i = 0; i < extractedNumbers.length; i++) {
       sum += double.parse(extractedNumbers[i][0].replaceAll(',', '')) *
@@ -446,7 +453,9 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
             Center(
                 child: ClipRRect(
                     borderRadius: BorderRadius.circular(20.0),
-                    child: Image.file(File(widget.imagePath)))),
+                    child: cropped
+                        ? Image.file(File(imagePath))
+                        : Image.file(File(widget.imagePath)))),
             Positioned(
               top: MediaQuery.of(context).size.height * 0.04,
               left: MediaQuery.of(context).size.width * 0.05,
@@ -458,6 +467,30 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
                 },
               ),
             ),
+            Positioned(
+                top: MediaQuery.of(context).size.height * 0.1,
+                right: MediaQuery.of(context).size.width * 0.05,
+                child: IconButton(
+                    onPressed: () async {
+                      final croppedImage = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CropImageWidget(
+                            pickedFile: Image.file(File(widget.imagePath)),
+                          ),
+                        ),
+                      );
+
+                      if (croppedImage == null) {
+                        return;
+                      }
+
+                      setState(() {
+                        imagePath = croppedImage;
+                        cropped = true;
+                      });
+                    },
+                    icon: const Icon(Icons.crop, color: Colors.red))),
 
             // add a process button
             Positioned(
@@ -580,6 +613,59 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
               ],
             )
         ]),
+      ),
+    );
+  }
+}
+
+class CropImageWidget extends StatefulWidget {
+  const CropImageWidget({super.key, required this.pickedFile});
+
+  final Image pickedFile;
+  @override
+  State<CropImageWidget> createState() => _CropImageWidgetState();
+}
+
+class _CropImageWidgetState extends State<CropImageWidget> {
+  String? pickedFile;
+  // Image? _image;
+
+  final controller = CropController();
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, pickedFile);
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Image Cropper'),
+        ),
+        body: Center(
+            child: CropImage(
+          image: widget.pickedFile,
+          controller: controller,
+          alwaysMove: true,
+        )),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () async {
+            final bitmap = await controller.croppedBitmap();
+            final data = await bitmap.toByteData(format: ImageByteFormat.png);
+            final bytes = data!.buffer.asUint8List();
+
+            // Save the cropped image to the app directory.
+            final directory = await getApplicationDocumentsDirectory();
+            final file = File('${directory.path}/cropped.png');
+            await file.writeAsBytes(bytes);
+
+            setState(() {
+              pickedFile = file.path;
+            });
+          },
+          child: const Icon(Icons.crop),
+        ),
       ),
     );
   }
