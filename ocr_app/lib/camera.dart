@@ -1,7 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
@@ -247,6 +246,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                       // Pass the automatically generated path to
                       // the DisplayPictureScreen widget.
                       imagePath: image.path,
+                      cropped: false,
                       total: total,
                       foreignCurrency: widget.foreignCurrency,
                       excelData: excelData,
@@ -285,10 +285,12 @@ class DisplayPictureScreen extends StatefulWidget {
   final bool foreignCurrency;
   final List excelData;
   final Type dataType;
+  final bool cropped;
 
   const DisplayPictureScreen(
       {super.key,
       required this.imagePath,
+      required this.cropped,
       required this.total,
       required this.foreignCurrency,
       this.excelData = const [],
@@ -306,7 +308,7 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
   List extractedNumbers = [];
   List extractedText = [];
   Map<String, List> rfcCurp = {};
-  String imagePath = '';
+  var imagePath;
   bool cropped = false;
 
   void _calculateSum() {
@@ -373,12 +375,20 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
   Future<void> extractText(imagePath) async {
     extractedText.clear();
     extractedNumbers.clear();
+    var inputImage;
     rfcCurp = {};
 
     RegExp rfcRegex = RegExp(r'[A-Z]{4}\d{6}[A-Z0-9]{0,3}');
     RegExp curpRegex = RegExp(r'[A-Z]{4}\d{6}[A-Z0-9]{8}');
 
-    final inputImage = InputImage.fromFilePath(imagePath);
+    if (imagePath.runtimeType == String) {
+      inputImage = InputImage.fromFilePath(imagePath);
+    } else {
+      String tempPath = (await getTemporaryDirectory()).path;
+      File file = File('$tempPath/temp.png');
+      await file.writeAsBytes(imagePath.buffer.asUint8List());
+      inputImage = InputImage.fromFile(file);
+    }
     final textDetector = TextRecognizer();
     final RecognizedText recognisedText =
         await textDetector.processImage(inputImage);
@@ -441,6 +451,13 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
     return WillPopScope(
       onWillPop: () async {
         Navigator.pop(context, sum);
+        // final directory = await getApplicationDocumentsDirectory();
+        // await File('${directory.path}/cropped.png').delete();
+        setState(() {
+          cropped = false;
+          imagePath = '';
+        });
+
         return false;
       },
       child: Scaffold(
@@ -454,7 +471,7 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
                 child: ClipRRect(
                     borderRadius: BorderRadius.circular(20.0),
                     child: cropped
-                        ? Image.file(File(imagePath))
+                        ? Image.memory(imagePath)
                         : Image.file(File(widget.imagePath)))),
             Positioned(
               top: MediaQuery.of(context).size.height * 0.04,
@@ -472,7 +489,7 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
                 right: MediaQuery.of(context).size.width * 0.05,
                 child: IconButton(
                     onPressed: () async {
-                      final croppedImage = await Navigator.push(
+                      var croppedImage = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => CropImageWidget(
@@ -499,7 +516,9 @@ class DisplayPictureScreenState extends State<DisplayPictureScreen> {
                 width: MediaQuery.of(context).size.width * 0.8,
                 child: FloatingActionButton(
                   onPressed: () {
-                    extractText(widget.imagePath);
+                    cropped
+                        ? extractText(imagePath)
+                        : extractText(widget.imagePath);
                   },
                   child: const Text('Procesar'),
                 ),
@@ -627,7 +646,7 @@ class CropImageWidget extends StatefulWidget {
 }
 
 class _CropImageWidgetState extends State<CropImageWidget> {
-  String? pickedFile;
+  var pickedFile;
   // Image? _image;
 
   final controller = CropController();
@@ -651,17 +670,12 @@ class _CropImageWidgetState extends State<CropImageWidget> {
         )),
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
-            final bitmap = await controller.croppedBitmap();
-            final data = await bitmap.toByteData(format: ImageByteFormat.png);
-            final bytes = data!.buffer.asUint8List();
-
-            // Save the cropped image to the app directory.
-            final directory = await getApplicationDocumentsDirectory();
-            final file = File('${directory.path}/cropped.png');
-            await file.writeAsBytes(bytes);
+            var bitmap = await controller.croppedBitmap();
+            var data = await bitmap.toByteData(format: ImageByteFormat.png);
+            var bytes = data!.buffer.asUint8List();
 
             setState(() {
-              pickedFile = file.path;
+              pickedFile = bytes;
             });
           },
           child: const Icon(Icons.crop),
